@@ -1,0 +1,23 @@
+module.exports = {
+    RequirementReview: require('./requirement-review'),
+    StoryReview: require('./story-review'),
+    ActivityDiagramReview: require('./activity-diagram-review'),
+    UseCaseDiagramReview: require('./use-case-diagram-review'),
+    SequenceDiagramReview: require('./sequence-diagram-review'),
+    ClassDiagramReview: require('./class-diagram-review'),
+    DesignPatternReview: require('./design-pattern-review'),
+    MockupReview: require('./mockup-review'),
+    User: require('./user'),
+	InvitedUser: require('./invited-user'),
+	InvitedUsersToProject: require('./invited-users-to-project'),
+	Project: require('./project'),
+	ProjectRequirement: require('./project-requirement'),
+	ProjectStory: require('./project-story'),
+	ActivityDiagram: require('./activity-diagram'),
+	UseCaseDiagram: require('./use-case-diagram'),
+	Mockup: require('./mockup'),
+	SequenceDiagram: require('./sequence-diagram'),
+	ClassDiagram: require('./class-diagram'),
+	DesignPattern: require('./design-pattern'),
+    GeneralComment: require('./general-comment')
+  };

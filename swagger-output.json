@@ -1,0 +1,3484 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Review App API",
+    "version": "1.0.0",
+    "description": "API documentation for the Software Design Artifacts Review Application",
+    "contact": {
+      "name": "API Support",
+      "email": "support@reviewapp.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Development server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "parameters": {
+      "classDiagramProjectIdParam": {
+        "name": "projectId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Project ID"
+      },
+      "classDiagramIdParam": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Class Diagram ID"
+      },
+      "designPatternProjectIdParam": {
+        "name": "projectId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Project ID"
+      },
+      "designPatternIdParam": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Design Pattern ID"
+      },
+      "sequenceDiagramProjectIdParam": {
+        "name": "projectId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Project ID"
+      },
+      "sequenceDiagramIdParam": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Sequence Diagram ID"
+      },
+      "useCaseDiagramProjectIdParam": {
+        "name": "projectId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Project ID"
+      },
+      "useCaseDiagramIdParam": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Use Case Diagram ID"
+      },
+      "projectIdParam": {
+        "name": "projectId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Project ID"
+      },
+      "diagramIdParam": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Diagram ID"
+      }
+    },
+    "schemas": {
+      "RubricCriteria": {
+        "type": "object",
+        "required": [
+          "name",
+          "score"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the criteria"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the criteria"
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5,
+            "description": "Score for the criteria"
+          },
+          "comment": {
+            "type": "string",
+            "description": "Optional comment for the criteria"
+          }
+        }
+      },
+      "RubricEvaluation": {
+        "type": "object",
+        "required": [
+          "rubricType",
+          "project",
+          "evaluator"
+        ],
+        "properties": {
+          "rubricType": {
+            "type": "string",
+            "enum": [
+              "requirements",
+              "stories",
+              "activityDiagrams",
+              "useCaseDiagrams",
+              "sequenceDiagrams",
+              "classDiagrams",
+              "designPatterns",
+              "mockups"
+            ]
+          },
+          "criteria": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RubricCriteria"
+            }
+          },
+          "overallScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "generalComment": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project ID"
+          },
+          "evaluator": {
+            "type": "string",
+            "description": "Evaluator ID"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/activity-diagrams/project/{projectId}": {
+      "get": {
+        "summary": "Get all activity diagrams for a project",
+        "tags": [
+          "Activity Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/projectIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of activity diagrams"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/activity-diagrams/{id}": {
+      "get": {
+        "summary": "Get a single activity diagram",
+        "tags": [
+          "Activity Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/diagramIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Activity diagram details"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Diagram not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update an activity diagram",
+        "tags": [
+          "Activity Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/diagramIdParam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "linkedItems": {
+                    "type": "object",
+                    "properties": {
+                      "stories": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Activity diagram updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Diagram not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete an activity diagram",
+        "tags": [
+          "Activity Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/diagramIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Activity diagram deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Diagram not found"
+          }
+        }
+      }
+    },
+    "/api/activity-diagrams": {
+      "post": {
+        "summary": "Create a new activity diagram",
+        "tags": [
+          "Activity Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "url",
+                  "handle",
+                  "projectId"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "handle": {
+                    "type": "string"
+                  },
+                  "filename": {
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "type": "string"
+                  },
+                  "uploadId": {
+                    "type": "string"
+                  },
+                  "size": {
+                    "type": "number"
+                  },
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "linkedItems": {
+                    "type": "object",
+                    "properties": {
+                      "stories": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Activity diagram created successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/auth": {
+      "get": {
+        "summary": "Auth0 callback",
+        "tags": [
+          "Authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "Auth0 callback successful"
+          },
+          "400": {
+            "description": "Auth0 callback failed"
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "summary": "Register a new user",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password",
+                  "name"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "User's email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "description": "User's password"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "User's full name"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully"
+          },
+          "400": {
+            "description": "Registration error"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "summary": "Login a user",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "User's email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "description": "User's password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User logged in successfully"
+          },
+          "400": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "summary": "Logout a user",
+        "tags": [
+          "Authentication"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User logged out successfully"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid token"
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "summary": "Get current user profile",
+        "tags": [
+          "Authentication"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user profile"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid token"
+          }
+        }
+      }
+    },
+    "/api/class-diagrams/project/{projectId}": {
+      "get": {
+        "summary": "Get all class diagrams for a project",
+        "tags": [
+          "Class Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/classDiagramProjectIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of class diagrams"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to access this project"
+          }
+        }
+      }
+    },
+    "/api/class-diagrams/{id}": {
+      "get": {
+        "summary": "Get a single class diagram",
+        "tags": [
+          "Class Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/classDiagramIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Class diagram details"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to view this diagram"
+          },
+          "404": {
+            "description": "Diagram not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a class diagram",
+        "tags": [
+          "Class Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/classDiagramIdParam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "linkedItems": {
+                    "type": "object",
+                    "properties": {
+                      "requirements": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Array of requirement IDs"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Class diagram updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to update this diagram"
+          },
+          "404": {
+            "description": "Diagram not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a class diagram",
+        "tags": [
+          "Class Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/classDiagramIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Class diagram deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to delete this diagram"
+          },
+          "404": {
+            "description": "Diagram not found"
+          }
+        }
+      }
+    },
+    "/api/class-diagrams": {
+      "post": {
+        "summary": "Create a new class diagram",
+        "tags": [
+          "Class Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "url",
+                  "handle",
+                  "projectId"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "handle": {
+                    "type": "string"
+                  },
+                  "filename": {
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "type": "string"
+                  },
+                  "uploadId": {
+                    "type": "string"
+                  },
+                  "size": {
+                    "type": "number"
+                  },
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "linkedItems": {
+                    "type": "object",
+                    "properties": {
+                      "requirements": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Array of requirement IDs"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Class diagram created successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to add diagrams to this project"
+          }
+        }
+      }
+    },
+    "/api/design-patterns/project/{projectId}": {
+      "get": {
+        "summary": "Get all design patterns for a project",
+        "tags": [
+          "Design Patterns"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/designPatternProjectIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of design patterns"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to access this project"
+          }
+        }
+      }
+    },
+    "/api/design-patterns/{id}": {
+      "get": {
+        "summary": "Get a single design pattern",
+        "tags": [
+          "Design Patterns"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/designPatternIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Design pattern details"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to view this design pattern"
+          },
+          "404": {
+            "description": "Design pattern not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a design pattern",
+        "tags": [
+          "Design Patterns"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/designPatternIdParam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "linkedItems": {
+                    "type": "object",
+                    "properties": {
+                      "requirements": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Array of requirement IDs"
+                      },
+                      "classDiagrams": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Array of class diagram IDs"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Design pattern updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to update this design pattern"
+          },
+          "404": {
+            "description": "Design pattern not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a design pattern",
+        "tags": [
+          "Design Patterns"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/designPatternIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Design pattern deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to delete this design pattern"
+          },
+          "404": {
+            "description": "Design pattern not found"
+          }
+        }
+      }
+    },
+    "/api/design-patterns": {
+      "post": {
+        "summary": "Create a new design pattern",
+        "tags": [
+          "Design Patterns"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "url",
+                  "handle",
+                  "projectId"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "handle": {
+                    "type": "string"
+                  },
+                  "filename": {
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "type": "string"
+                  },
+                  "uploadId": {
+                    "type": "string"
+                  },
+                  "size": {
+                    "type": "number"
+                  },
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "linkedItems": {
+                    "type": "object",
+                    "properties": {
+                      "requirements": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Array of requirement IDs"
+                      },
+                      "classDiagrams": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Array of class diagram IDs"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Design pattern created successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to add design patterns to this project"
+          }
+        }
+      }
+    },
+    "/api/mockups/project/{projectId}": {
+      "get": {
+        "summary": "Get all mockups for a project",
+        "tags": [
+          "Mockups"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of mockups"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to access this project"
+          }
+        }
+      }
+    },
+    "/api/mockups/{id}": {
+      "get": {
+        "summary": "Get a single mockup",
+        "tags": [
+          "Mockups"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Mockup ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mockup details with linked stories and navigation"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to view this mockup"
+          },
+          "404": {
+            "description": "Mockup not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a mockup",
+        "tags": [
+          "Mockups"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Mockup ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "storiesLinked": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Array of story IDs"
+                  },
+                  "previousScreens": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Array of mockup IDs that come before this screen"
+                  },
+                  "nextScreens": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Array of mockup IDs that come after this screen"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mockup updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to update this mockup"
+          },
+          "404": {
+            "description": "Mockup not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a mockup",
+        "tags": [
+          "Mockups"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Mockup ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mockup deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to delete this mockup"
+          },
+          "404": {
+            "description": "Mockup not found"
+          }
+        }
+      }
+    },
+    "/api/mockups": {
+      "post": {
+        "summary": "Create a new mockup",
+        "tags": [
+          "Mockups"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "url",
+                  "handle",
+                  "projectId"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "handle": {
+                    "type": "string"
+                  },
+                  "filename": {
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "type": "string"
+                  },
+                  "uploadId": {
+                    "type": "string"
+                  },
+                  "size": {
+                    "type": "number"
+                  },
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "storiesLinked": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Array of story IDs"
+                  },
+                  "previousScreens": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Array of mockup IDs that come before this screen"
+                  },
+                  "nextScreens": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Array of mockup IDs that come after this screen"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Mockup created successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to add mockups to this project"
+          }
+        }
+      }
+    },
+    "/api/mockups/{mockupId}/navigation": {
+      "put": {
+        "summary": "Update mockup navigation",
+        "tags": [
+          "Mockups"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mockupId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Mockup ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "previousScreens": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Array of mockup IDs that come before this screen"
+                  },
+                  "nextScreens": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Array of mockup IDs that come after this screen"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mockup navigation updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to update this mockup"
+          },
+          "404": {
+            "description": "Mockup not found"
+          }
+        }
+      }
+    },
+    "/api/oauth/login": {
+      "get": {
+        "summary": "Redirect to Auth0 login",
+        "tags": [
+          "OAuth"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "redirectTo",
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "description": "URL to redirect to after login"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to Auth0 login"
+          }
+        }
+      }
+    },
+    "/api/oauth/callback": {
+      "get": {
+        "summary": "Handle Auth0 OAuth callback",
+        "tags": [
+          "OAuth"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "description": "Authorization code returned from Auth0"
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "description": "Encrypted state with origin"
+          },
+          {
+            "in": "query",
+            "name": "setup_action",
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "description": "Optional setup action, e.g., \"install\""
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirects user back to frontend with tokens or error"
+          }
+        }
+      }
+    },
+    "/api/projects": {
+      "get": {
+        "summary": "Get all projects for current user",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of user's projects"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new project",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "motto": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Project created successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/projects/{id}": {
+      "get": {
+        "summary": "Get project by ID with statistics",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project details with statistics"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update project",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "motto": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to update this project"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete project",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Only project creator can delete"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      }
+    },
+    "/api/projects/invite": {
+      "post": {
+        "summary": "Invite a user to a project",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "projectId"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "projectId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Invitation sent successfully"
+          },
+          "400": {
+            "description": "User already invited"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Only project creator can invite"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      }
+    },
+    "/api/requirements/project/{projectId}": {
+      "get": {
+        "summary": "Get all requirements for a project",
+        "tags": [
+          "Requirements"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of requirements"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to access this project"
+          }
+        }
+      }
+    },
+    "/api/requirements/{id}": {
+      "get": {
+        "summary": "Get a single requirement",
+        "tags": [
+          "Requirements"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Requirement ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Requirement details"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to view this requirement"
+          },
+          "404": {
+            "description": "Requirement not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a requirement",
+        "tags": [
+          "Requirements"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Requirement ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "Functional",
+                      "Non-Functional",
+                      "Business",
+                      "User",
+                      "System"
+                    ]
+                  },
+                  "user_priority": {
+                    "type": "string",
+                    "enum": [
+                      "Critical",
+                      "High",
+                      "Medium",
+                      "Low"
+                    ]
+                  },
+                  "system_priority": {
+                    "type": "string",
+                    "enum": [
+                      "Critical",
+                      "High",
+                      "Medium",
+                      "Low"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Requirement updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to update this requirement"
+          },
+          "404": {
+            "description": "Requirement not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a requirement",
+        "tags": [
+          "Requirements"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Requirement ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Requirement deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to delete this requirement"
+          },
+          "404": {
+            "description": "Requirement not found"
+          }
+        }
+      }
+    },
+    "/api/requirements": {
+      "post": {
+        "summary": "Create a new requirement",
+        "tags": [
+          "Requirements"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "text",
+                  "projectId"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "Functional",
+                      "Non-Functional",
+                      "Business",
+                      "User",
+                      "System"
+                    ]
+                  },
+                  "user_priority": {
+                    "type": "string",
+                    "enum": [
+                      "Critical",
+                      "High",
+                      "Medium",
+                      "Low"
+                    ]
+                  },
+                  "system_priority": {
+                    "type": "string",
+                    "enum": [
+                      "Critical",
+                      "High",
+                      "Medium",
+                      "Low"
+                    ]
+                  },
+                  "projectId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Requirement created successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to add requirements to this project"
+          }
+        }
+      }
+    },
+    "/api/reviews": {
+      "post": {
+        "summary": "Submit or update a review",
+        "tags": [
+          "Reviews"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "artifactType",
+                  "artifactId",
+                  "rating"
+                ],
+                "properties": {
+                  "artifactType": {
+                    "type": "string",
+                    "enum": [
+                      "requirement",
+                      "story",
+                      "activityDiagram",
+                      "useCaseDiagram",
+                      "sequenceDiagram",
+                      "classDiagram",
+                      "designPattern",
+                      "mockup"
+                    ]
+                  },
+                  "artifactId": {
+                    "type": "string"
+                  },
+                  "rating": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 5
+                  },
+                  "comment": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Review submitted successfully"
+          },
+          "400": {
+            "description": "Invalid artifact type"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to review this artifact"
+          },
+          "404": {
+            "description": "Artifact not found"
+          }
+        }
+      }
+    },
+    "/api/reviews/my/{artifactType}/{artifactId}": {
+      "get": {
+        "summary": "Get current user's review for an artifact",
+        "tags": [
+          "Reviews"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifactType",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "requirement",
+                "story",
+                "activityDiagram",
+                "useCaseDiagram",
+                "sequenceDiagram",
+                "classDiagram",
+                "designPattern",
+                "mockup"
+              ]
+            },
+            "description": "Type of artifact"
+          },
+          {
+            "in": "path",
+            "name": "artifactId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID of the artifact"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User's review for the artifact"
+          },
+          "400": {
+            "description": "Invalid artifact type"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/reviews/{artifactType}/{artifactId}": {
+      "get": {
+        "summary": "Get all reviews for an artifact",
+        "tags": [
+          "Reviews"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifactType",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "requirement",
+                "story",
+                "activityDiagram",
+                "useCaseDiagram",
+                "sequenceDiagram",
+                "classDiagram",
+                "designPattern",
+                "mockup"
+              ]
+            },
+            "description": "Type of artifact"
+          },
+          {
+            "in": "path",
+            "name": "artifactId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID of the artifact"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "All reviews for the artifact"
+          },
+          "400": {
+            "description": "Invalid artifact type"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to view reviews for this artifact"
+          },
+          "404": {
+            "description": "Artifact not found"
+          }
+        }
+      }
+    },
+    "/api/reviews/general-comment": {
+      "post": {
+        "summary": "Save general comment for artifact type",
+        "tags": [
+          "Reviews"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "projectId",
+                  "artifactType",
+                  "comment"
+                ],
+                "properties": {
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "artifactType": {
+                    "type": "string",
+                    "enum": [
+                      "requirements",
+                      "stories",
+                      "activityDiagrams",
+                      "useCaseDiagrams",
+                      "sequenceDiagrams",
+                      "classDiagrams",
+                      "designPatterns",
+                      "mockups"
+                    ]
+                  },
+                  "comment": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Comment saved successfully"
+          },
+          "400": {
+            "description": "Invalid artifact type"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to comment on this project"
+          }
+        }
+      }
+    },
+    "/api/reviews/general-comment/{projectId}/{artifactType}": {
+      "get": {
+        "summary": "Get general comment for artifact type",
+        "tags": [
+          "Reviews"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project ID"
+          },
+          {
+            "in": "path",
+            "name": "artifactType",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "requirements",
+                "stories",
+                "activityDiagrams",
+                "useCaseDiagrams",
+                "sequenceDiagrams",
+                "classDiagrams",
+                "designPatterns",
+                "mockups"
+              ]
+            },
+            "description": "Type of artifact category"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "General comment for the artifact type"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to view comments for this project"
+          }
+        }
+      }
+    },
+    "/api/rubric-evaluations/{projectId}/{rubricType}": {
+      "get": {
+        "summary": "Get rubric evaluation for a project",
+        "tags": [
+          "Rubric Evaluations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "rubricType",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "requirements",
+                "stories",
+                "activityDiagrams",
+                "useCaseDiagrams",
+                "sequenceDiagrams",
+                "classDiagrams",
+                "designPatterns",
+                "mockups"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved rubric evaluation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RubricEvaluation"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/rubric-evaluations": {
+      "post": {
+        "summary": "Save a complete rubric evaluation",
+        "tags": [
+          "Rubric Evaluations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RubricEvaluation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Evaluation saved"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/rubric-evaluations/general-comment": {
+      "post": {
+        "summary": "Save a general comment on a rubric evaluation",
+        "tags": [
+          "Rubric Evaluations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "projectId",
+                  "rubricType",
+                  "comment"
+                ],
+                "properties": {
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "rubricType": {
+                    "type": "string",
+                    "enum": [
+                      "requirements",
+                      "stories",
+                      "activityDiagrams",
+                      "useCaseDiagrams",
+                      "sequenceDiagrams",
+                      "classDiagrams",
+                      "designPatterns",
+                      "mockups"
+                    ]
+                  },
+                  "comment": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Comment saved"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/rubric-evaluations/{projectId}/{rubricType}/calculate-score": {
+      "get": {
+        "summary": "Calculate overall score for a rubric evaluation",
+        "tags": [
+          "Rubric Evaluations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "rubricType",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "requirements",
+                "stories",
+                "activityDiagrams",
+                "useCaseDiagrams",
+                "sequenceDiagrams",
+                "classDiagrams",
+                "designPatterns",
+                "mockups"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Calculated score",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "overallScore": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/sequence-diagrams/project/{projectId}": {
+      "get": {
+        "summary": "Get all sequence diagrams for a project",
+        "tags": [
+          "Sequence Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/sequenceDiagramProjectIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of sequence diagrams"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to access this project"
+          }
+        }
+      }
+    },
+    "/api/sequence-diagrams/{id}": {
+      "get": {
+        "summary": "Get a single sequence diagram",
+        "tags": [
+          "Sequence Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/sequenceDiagramIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sequence diagram details"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to view this diagram"
+          },
+          "404": {
+            "description": "Diagram not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a sequence diagram",
+        "tags": [
+          "Sequence Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/sequenceDiagramIdParam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "linkedItems": {
+                    "type": "object",
+                    "properties": {
+                      "stories": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Array of story IDs"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sequence diagram updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to update this diagram"
+          },
+          "404": {
+            "description": "Diagram not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a sequence diagram",
+        "tags": [
+          "Sequence Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/sequenceDiagramIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sequence diagram deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to delete this diagram"
+          },
+          "404": {
+            "description": "Diagram not found"
+          }
+        }
+      }
+    },
+    "/api/sequence-diagrams": {
+      "post": {
+        "summary": "Create a new sequence diagram",
+        "tags": [
+          "Sequence Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "url",
+                  "handle",
+                  "projectId"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "handle": {
+                    "type": "string"
+                  },
+                  "filename": {
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "type": "string"
+                  },
+                  "uploadId": {
+                    "type": "string"
+                  },
+                  "size": {
+                    "type": "number"
+                  },
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "linkedItems": {
+                    "type": "object",
+                    "properties": {
+                      "stories": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Array of story IDs"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Sequence diagram created successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to add diagrams to this project"
+          }
+        }
+      }
+    },
+    "/api/stories/project/{projectId}": {
+      "get": {
+        "summary": "Get all stories for a project",
+        "tags": [
+          "Stories"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of stories"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to access this project"
+          }
+        }
+      }
+    },
+    "/api/stories/{id}": {
+      "get": {
+        "summary": "Get a single story",
+        "tags": [
+          "Stories"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Story ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Story details with linked requirements"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to view this story"
+          },
+          "404": {
+            "description": "Story not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a story",
+        "tags": [
+          "Stories"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Story ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "Gherkin code"
+                  },
+                  "requirementsLinked": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Array of requirement IDs"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Story updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to update this story"
+          },
+          "404": {
+            "description": "Story not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a story",
+        "tags": [
+          "Stories"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Story ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Story deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to delete this story"
+          },
+          "404": {
+            "description": "Story not found"
+          }
+        }
+      }
+    },
+    "/api/stories": {
+      "post": {
+        "summary": "Create a new story",
+        "tags": [
+          "Stories"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "text",
+                  "projectId"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "Gherkin code"
+                  },
+                  "requirementsLinked": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Array of requirement IDs"
+                  },
+                  "projectId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Story created successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to add stories to this project"
+          }
+        }
+      }
+    },
+    "/api/test": {
+      "get": {
+        "summary": "Test if the API is working",
+        "tags": [
+          "Test"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/use-case-diagrams/project/{projectId}": {
+      "get": {
+        "summary": "Get all use case diagrams for a project",
+        "tags": [
+          "Use Case Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/useCaseDiagramProjectIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of use case diagrams"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to access this project"
+          }
+        }
+      }
+    },
+    "/api/use-case-diagrams/{id}": {
+      "get": {
+        "summary": "Get a single use case diagram",
+        "tags": [
+          "Use Case Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/useCaseDiagramIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Use case diagram details"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to view this diagram"
+          },
+          "404": {
+            "description": "Diagram not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a use case diagram",
+        "tags": [
+          "Use Case Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/useCaseDiagramIdParam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "linkedItems": {
+                    "type": "object",
+                    "properties": {
+                      "requirements": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Array of requirement IDs"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Use case diagram updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to update this diagram"
+          },
+          "404": {
+            "description": "Diagram not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a use case diagram",
+        "tags": [
+          "Use Case Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/useCaseDiagramIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Use case diagram deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to delete this diagram"
+          },
+          "404": {
+            "description": "Diagram not found"
+          }
+        }
+      }
+    },
+    "/api/use-case-diagrams": {
+      "post": {
+        "summary": "Create a new use case diagram",
+        "tags": [
+          "Use Case Diagrams"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "url",
+                  "handle",
+                  "projectId"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "handle": {
+                    "type": "string"
+                  },
+                  "filename": {
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "type": "string"
+                  },
+                  "uploadId": {
+                    "type": "string"
+                  },
+                  "size": {
+                    "type": "number"
+                  },
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "linkedItems": {
+                    "type": "object",
+                    "properties": {
+                      "requirements": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Array of requirement IDs"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Use case diagram created successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not authorized to add diagrams to this project"
+          }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "summary": "Get all users (admin only)",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of all users"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "summary": "Get user profile by ID",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "User ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User profile"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update user profile",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "User ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fullName": {
+                    "type": "string"
+                  },
+                  "username": {
+                    "type": "string"
+                  },
+                  "avatar": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User profile updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not allowed to update this user"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/api/users/{id}/password": {
+      "put": {
+        "summary": "Change user password",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "User ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "currentPassword",
+                  "newPassword"
+                ],
+                "properties": {
+                  "currentPassword": {
+                    "type": "string"
+                  },
+                  "newPassword": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed successfully"
+          },
+          "400": {
+            "description": "Current password is incorrect"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not allowed to change this user's password"
+          }
+        }
+      }
+    },
+    "/api/users/{id}/projects": {
+      "get": {
+        "summary": "Get user's projects",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "User ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of user's projects"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Not allowed to view this user's projects"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "User authentication endpoints"
+    },
+    {
+      "name": "Class Diagrams",
+      "description": "Class diagrams management"
+    },
+    {
+      "name": "Design Patterns",
+      "description": "Design patterns management"
+    },
+    {
+      "name": "Mockups",
+      "description": "UI mockups management"
+    },
+    {
+      "name": "OAuth",
+      "description": "OAuth login and callback handling"
+    },
+    {
+      "name": "Projects",
+      "description": "Project management endpoints"
+    },
+    {
+      "name": "Requirements",
+      "description": "Project requirements management"
+    },
+    {
+      "name": "Reviews",
+      "description": "Review management endpoints"
+    },
+    {
+      "name": "Rubric Evaluations",
+      "description": "Endpoints related to project rubric evaluations"
+    },
+    {
+      "name": "Sequence Diagrams",
+      "description": "Sequence diagrams management"
+    },
+    {
+      "name": "Stories",
+      "description": "User stories management"
+    },
+    {
+      "name": "Use Case Diagrams",
+      "description": "Use case diagrams management"
+    },
+    {
+      "name": "Users",
+      "description": "User management endpoints"
+    }
+  ]
+}
