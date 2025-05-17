@@ -14,7 +14,7 @@ const {
   MockupReview
 } = require('../models');
 
-const reviewModelMap = {
+exports.reviewModelMap = {
   requirement: {
     model: RequirementReview,
     refField: 'requirement',
@@ -57,6 +57,19 @@ const reviewModelMap = {
   }
 };
 
+
+
+const validateProjectAccess = async (userId, projectId, userRole = 'User') => {
+  const project = await Project.findOne({
+    _id: projectId,
+    users: { $in: [userId] }
+  });
+  if (!project && userRole !== 'Admin') {
+    throw new Error('Not authorized to access this project');
+  }
+  return project;
+};
+
 const includeRubricScores = async (review, artifactType, projectId, userId) => {
   const RubricEvaluation = require('../models/rubric-evaluation');
   try {
@@ -80,17 +93,6 @@ const includeRubricScores = async (review, artifactType, projectId, userId) => {
   return review;
 };
 
-const validateProjectAccess = async (userId, projectId, userRole = 'User') => {
-  const project = await Project.findOne({
-    _id: projectId,
-    users: { $in: [userId] }
-  });
-  if (!project && userRole !== 'Admin') {
-    throw new Error('Not authorized to access this project');
-  }
-  return project;
-};
-
 exports.submitReview = async (req, res) => {
   try {
     if (!req.auth?.isAuthenticated || !req.auth.user) {
@@ -99,8 +101,10 @@ exports.submitReview = async (req, res) => {
     const user = await User.findById(req.auth.user._id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const { artifactType, artifactId } = req.body;
-    const entry = reviewModelMap[artifactType];
+    const { artifactType, artifactId, rating, comment, ...scores } = req.body;
+    console.log('[BE:Reviews] Review data received:', { artifactType, artifactId, rating, comment, scores });
+    
+    const entry = this.reviewModelMap[artifactType];
     if (!entry) return res.status(400).json({ error: 'Invalid artifact type' });
 
     const { model: ReviewModel, refField, artifactModel: ArtifactModel } = entry;
@@ -109,30 +113,76 @@ exports.submitReview = async (req, res) => {
 
     await validateProjectAccess(user._id, artifact.project, user.role);
 
-    const reviewData = {
+    // For designPattern, make sure scores are correctly mapped
+    let reviewData = {
       reviewer: user._id,
       project: artifact.project,
       [refField]: artifactId,
-      ...req.body
+      rating,
+      comment,
     };
-    delete reviewData.artifactType;
-    delete reviewData.artifactId;
+    
+    // For design patterns, add score fields explicitly
+    if (artifactType === 'designPattern') {
+      reviewData = {
+        ...reviewData,
+        patternSelectionScore: scores.patternSelectionScore,
+        implementationScore: scores.implementationScore,
+        flexibilityScore: scores.flexibilityScore,
+        documentationScore: scores.documentationScore
+      };
+    } else {
+      // For other types
+      reviewData = { ...reviewData, ...scores };
+    }
+    
+    console.log('[BE:Reviews] Final review data to save:', reviewData);
 
     let review = await ReviewModel.findOne({ [refField]: artifactId, reviewer: user._id });
     if (review) {
+      console.log('[BE:Reviews] Updating existing review');
+      // Update each field explicitly to ensure they're saved
       Object.keys(reviewData).forEach(key => {
         if (reviewData[key] !== undefined) {
           review[key] = reviewData[key];
         }
       });
     } else {
+      console.log('[BE:Reviews] Creating new review');
       review = new ReviewModel(reviewData);
     }
 
     await review.save();
-    res.status(201).json({ review });
+    console.log('[BE:Reviews] Review saved successfully');
+    
+    // Update aggregate rubric data
+    try {
+      const rubricController = require('./rubric-controller');
+      await rubricController.updateAggregateRubric(
+        artifact.project,
+        artifactType + 's'
+      );
+    } catch (err) {
+      console.error('[BE:Reviews] Error updating aggregate rubric:', err);
+    }
+    
+    // Return the complete updated review
+    res.status(201).json({ 
+      success: true,
+      review: {
+        _id: review._id,
+        rating: review.rating,
+        comment: review.comment,
+        scores: {
+          patternSelectionScore: review.patternSelectionScore,
+          implementationScore: review.implementationScore,
+          flexibilityScore: review.flexibilityScore,
+          documentationScore: review.documentationScore
+        }
+      }
+    });
   } catch (error) {
-    console.error('Submit review error:', error);
+    console.error('[BE:Reviews] Submit review error:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -211,7 +261,7 @@ exports.saveGeneralComment = async (req, res) => {
 
     const { projectId, artifactType, comment } = req.body;
     const validTypes = [
-      'requirements', 'stories', 'activityDiagrams', 'useCaseDiagrams',
+      'requirements', 'storys', 'activityDiagrams', 'useCaseDiagrams',
       'sequenceDiagrams', 'classDiagrams', 'designPatterns', 'mockups'
     ];
     if (!validTypes.includes(artifactType)) {

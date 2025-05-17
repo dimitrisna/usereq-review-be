@@ -22,6 +22,7 @@ const designPatternsRoutes = require('./routes/design-patterns');
 const mockupsRoutes = require('./routes/mockups');
 const reviewsRoutes = require('./routes/reviews');
 const rubricEvaluationRoutes = require('./routes/rubric-evaluations');
+const compositeRoutes = require('./routes/composite');
 const swagger = require('./swagger');
 // Initialize express app
 const app = express();
@@ -52,6 +53,7 @@ app.use('/api/design-patterns', designPatternsRoutes);
 app.use('/api/mockups', mockupsRoutes);
 app.use('/api/reviews', reviewsRoutes);
 app.use('/api/rubric-evaluations', rubricEvaluationRoutes);
+app.use('/api/composite', compositeRoutes);
 app.use('/api/test', require('./routes/test'));
 // Health check route
 app.get('/api/health', (req, res) => {

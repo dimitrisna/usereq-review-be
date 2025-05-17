@@ -12,7 +12,7 @@ const DEFAULT_CRITERIA = {
         { name: 'Necessity', description: 'Each requirement is essential to the system', score: 0 },
         { name: 'Prioritization', description: 'Requirements are properly prioritized', score: 0 }
     ],
-    'stories': [
+    'storys': [
         { name: 'User Focus', description: 'Story clearly identifies the user role', score: 0 },
         { name: 'Value Proposition', description: 'Story clearly states the benefit to the user', score: 0 },
         { name: 'Acceptance Criteria', description: 'Clear criteria for when the story is complete', score: 0 },

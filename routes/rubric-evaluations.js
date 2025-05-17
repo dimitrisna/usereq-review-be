@@ -3,6 +3,7 @@ const express = require('express');
 const { auth, requireAuth } = require('../middlewares/auth');
 const rubricController = require('../controllers/rubric-evaluations');
 const router = express.Router();
+const rubric_Controller = require('../controllers/rubric-controller');
 
 /**
  * @swagger
@@ -221,5 +222,7 @@ router.post('/general-comment', auth, requireAuth, rubricController.saveGeneralC
  *         description: Unauthorized
  */
 router.get('/:projectId/:rubricType/calculate-score', auth, requireAuth, rubricController.calculateOverallScore);
+
+router.get('/aggregate/:projectId/:artifactType', auth, rubric_Controller.getAggregateRubric);
 
 module.exports = router;
