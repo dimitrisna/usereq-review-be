@@ -77,6 +77,72 @@ exports.getProjectStats = async (projectId) => {
     }
   };
 };
+exports.initStatsMap = (projectIds) => {
+  return projectIds.reduce((acc, projectId) => {
+    acc[projectId.toString()] = {
+      requirements: { total: 0, reviewed: 0, averageRating: 0 },
+      stories: { total: 0, reviewed: 0, averageRating: 0 },
+      activityDiagrams: { total: 0, reviewed: 0, averageRating: 0 },
+      useCaseDiagrams: { total: 0, reviewed: 0, averageRating: 0 },
+      sequenceDiagrams: { total: 0, reviewed: 0, averageRating: 0 },
+      classDiagrams: { total: 0, reviewed: 0, averageRating: 0 },
+      designPatterns: { total: 0, reviewed: 0, averageRating: 0 },
+      mockups: { total: 0, reviewed: 0, averageRating: 0 }
+    };
+    return acc;
+  }, {});
+};
+
+exports.updateStats = (counts, projectKey, statsMap) => {
+  counts.forEach(item => {
+    const projectId = item._id.toString();
+    if (statsMap[projectId]) {
+      statsMap[projectId][projectKey].total = item.total;
+    }
+  });
+};
+
+exports.updateReviewStats = (counts, projectKey, statsMap) => {
+  counts.forEach(item => {
+    const projectId = item._id.toString();
+    if (statsMap[projectId]) {
+      statsMap[projectId][projectKey].reviewed = item.reviewed;
+    }
+  });
+};
+
+exports.updateRatingStats = (ratings, projectKey, statsMap) => {
+  ratings.forEach(item => {
+    const projectId = item._id.toString();
+    if (statsMap[projectId]) {
+      statsMap[projectId][projectKey].averageRating = parseFloat(item.averageRating?.toFixed(2)) || 0;
+    }
+  });
+};
+
+exports.computeOverallStats = (stats) => {
+  const totalArtifacts = Object.values(stats).reduce((sum, stat) => sum + stat.total, 0);
+  const totalReviews = Object.values(stats).reduce((sum, stat) => sum + stat.reviewed, 0);
+
+  let totalRating = 0;
+  let ratedArtifactsCount = 0;
+  Object.values(stats).forEach(stat => {
+    if (stat.averageRating > 0) {
+      totalRating += stat.averageRating;
+      ratedArtifactsCount++;
+    }
+  });
+
+  const overallAverageGrade = ratedArtifactsCount > 0
+    ? parseFloat((totalRating / ratedArtifactsCount).toFixed(2))
+    : 0;
+
+  const completionPercentage = totalArtifacts > 0
+    ? parseFloat(((totalReviews / totalArtifacts) * 100).toFixed(2))
+    : 0;
+
+  return { totalArtifacts, totalReviews, overallAverageGrade, completionPercentage };
+};
 
 // Count unique artifacts that have been reviewed
 async function getUniqueReviewedCount(ReviewModel, refField, artifactIds) {

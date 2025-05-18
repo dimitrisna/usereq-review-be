@@ -23,6 +23,14 @@ const SequenceDiagramReview = require('../models/sequence-diagram-review');
 const ClassDiagramReview = require('../models/class-diagram-review');
 const DesignPatternReview = require('../models/design-pattern-review');
 const MockupReview = require('../models/mockup-review');
+const {
+  initStatsMap,
+  updateStats,
+  updateReviewStats,
+  updateRatingStats,
+  computeOverallStats
+} = require('../services/project-stats');
+
 // Get projects for current user
 exports.getProjects = async (req, res) => {
   try {
@@ -60,21 +68,33 @@ exports.getProjectsStats = async (req, res) => {
     const user = await User.findById(req.auth.user._id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Pagination parameters
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Determine which projects to query
+    const sortField = req.query.sortField || 'createdAt';
+    const sortDirection = req.query.sortDirection === 'descending' ? -1 : 1;
+    const search = req.query.search || '';
+    const sort = {};
+
+    if (['name', 'description', 'createdAt'].includes(sortField)) {
+      sort[sortField] = sortDirection;
+    }
+
     let projectQuery = {};
     if (user.role !== 'Admin') {
       projectQuery = { users: { $in: [user._id] } };
     }
 
-    // Get total count for pagination metadata
+    if (search) {
+      projectQuery.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
     const totalCount = await Project.countDocuments(projectQuery);
 
-    // Get paginated projects with basic info
     const projects = await Project.find(projectQuery, {
       name: 1,
       description: 1,
@@ -83,14 +103,11 @@ exports.getProjectsStats = async (req, res) => {
       motto: 1,
       creatorId: 1
     })
-    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt: -1 }); // Sort by creation date, newest first
+      .skip(skip)
+      .limit(limit)
+      .sort(sort);
 
-    // Get project IDs
     const projectIds = projects.map(p => p._id);
-    
-    // If no projects are found, return empty result with pagination info
     if (projectIds.length === 0) {
       return res.json({
         projects: [],
@@ -103,212 +120,76 @@ exports.getProjectsStats = async (req, res) => {
       });
     }
 
-    // Convert SYSTEM_USER_ID to ObjectId for comparison in aggregation
     const systemUserId = new mongoose.Types.ObjectId(SYSTEM_USER_ID);
+    const statsMap = initStatsMap(projectIds);
 
-    // Create a base stats object for each project
-    const statsMap = projectIds.reduce((acc, projectId) => {
-      acc[projectId.toString()] = {
-        requirements: { total: 0, reviewed: 0 },
-        stories: { total: 0, reviewed: 0 },
-        activityDiagrams: { total: 0, reviewed: 0 },
-        useCaseDiagrams: { total: 0, reviewed: 0 },
-        sequenceDiagrams: { total: 0, reviewed: 0 },
-        classDiagrams: { total: 0, reviewed: 0 },
-        designPatterns: { total: 0, reviewed: 0 },
-        mockups: { total: 0, reviewed: 0 }
-      };
-      return acc;
-    }, {});
+    // === Aggregation logic ===
 
-    // Run all aggregations in parallel for better performance
-    const [
-      requirementsCounts,
-      storiesCounts,
-      activityDiagramsCounts,
-      useCaseDiagramsCounts,
-      sequenceDiagramsCounts,
-      classDiagramsCounts,
-      designPatternsCounts,
-      mockupsCounts,
-      requirementReviewCounts,
-      storyReviewCounts,
-      activityDiagramReviewCounts,
-      useCaseDiagramReviewCounts,
-      sequenceDiagramReviewCounts,
-      classDiagramReviewCounts,
-      designPatternReviewCounts,
-      mockupReviewCounts
-    ] = await Promise.all([
-      // Artifact counts
-      ProjectRequirement.aggregate([
+    // Artifact counts
+    const artifactCountAgg = (Model, key) =>
+      Model.aggregate([
         { $match: { project: { $in: projectIds } } },
-        { $group: { _id: "$project", total: { $sum: 1 } } }
-      ]),
-      ProjectStory.aggregate([
-        { $match: { project: { $in: projectIds } } },
-        { $group: { _id: "$project", total: { $sum: 1 } } }
-      ]),
-      ActivityDiagram.aggregate([
-        { $match: { project: { $in: projectIds } } },
-        { $group: { _id: "$project", total: { $sum: 1 } } }
-      ]),
-      UseCaseDiagram.aggregate([
-        { $match: { project: { $in: projectIds } } },
-        { $group: { _id: "$project", total: { $sum: 1 } } }
-      ]),
-      SequenceDiagram.aggregate([
-        { $match: { project: { $in: projectIds } } },
-        { $group: { _id: "$project", total: { $sum: 1 } } }
-      ]),
-      ClassDiagram.aggregate([
-        { $match: { project: { $in: projectIds } } },
-        { $group: { _id: "$project", total: { $sum: 1 } } }
-      ]),
-      DesignPattern.aggregate([
-        { $match: { project: { $in: projectIds } } },
-        { $group: { _id: "$project", total: { $sum: 1 } } }
-      ]),
-      Mockup.aggregate([
-        { $match: { project: { $in: projectIds } } },
-        { $group: { _id: "$project", total: { $sum: 1 } } }
-      ]),
+        { $group: { _id: '$project', total: { $sum: 1 } } }
+      ]).then(res => updateStats(res, key, statsMap));
 
-      // Review counts - only count reviews by the system user
-      RequirementReview.aggregate([
-        { 
-          $match: { 
-            project: { $in: projectIds },
-            reviewer: systemUserId
-          } 
-        },
-        { $group: { _id: { project: "$project", requirement: "$requirement" } } },
-        { $group: { _id: "$_id.project", reviewed: { $sum: 1 } } }
-      ]),
-      StoryReview.aggregate([
-        { 
-          $match: { 
-            project: { $in: projectIds },
-            reviewer: systemUserId
-          } 
-        },
-        { $group: { _id: { project: "$project", story: "$story" } } },
-        { $group: { _id: "$_id.project", reviewed: { $sum: 1 } } }
-      ]),
-      ActivityDiagramReview.aggregate([
-        { 
-          $match: { 
-            project: { $in: projectIds },
-            reviewer: systemUserId
-          } 
-        },
-        { $group: { _id: { project: "$project", diagram: "$activityDiagram" } } },
-        { $group: { _id: "$_id.project", reviewed: { $sum: 1 } } }
-      ]),
-      UseCaseDiagramReview.aggregate([
-        { 
-          $match: { 
-            project: { $in: projectIds },
-            reviewer: systemUserId
-          } 
-        },
-        { $group: { _id: { project: "$project", diagram: "$useCaseDiagram" } } },
-        { $group: { _id: "$_id.project", reviewed: { $sum: 1 } } }
-      ]),
-      SequenceDiagramReview.aggregate([
-        { 
-          $match: { 
-            project: { $in: projectIds },
-            reviewer: systemUserId
-          } 
-        },
-        { $group: { _id: { project: "$project", diagram: "$sequenceDiagram" } } },
-        { $group: { _id: "$_id.project", reviewed: { $sum: 1 } } }
-      ]),
-      ClassDiagramReview.aggregate([
-        { 
-          $match: { 
-            project: { $in: projectIds },
-            reviewer: systemUserId
-          } 
-        },
-        { $group: { _id: { project: "$project", diagram: "$classDiagram" } } },
-        { $group: { _id: "$_id.project", reviewed: { $sum: 1 } } }
-      ]),
-      DesignPatternReview.aggregate([
-        { 
-          $match: { 
-            project: { $in: projectIds },
-            reviewer: systemUserId
-          } 
-        },
-        { $group: { _id: { project: "$project", pattern: "$designPattern" } } },
-        { $group: { _id: "$_id.project", reviewed: { $sum: 1 } } }
-      ]),
-      MockupReview.aggregate([
-        { 
-          $match: { 
-            project: { $in: projectIds },
-            reviewer: systemUserId
-          } 
-        },
-        { $group: { _id: { project: "$project", mockup: "$mockup" } } },
-        { $group: { _id: "$_id.project", reviewed: { $sum: 1 } } }
-      ])
+    await Promise.all([
+      artifactCountAgg(ProjectRequirement, 'requirements'),
+      artifactCountAgg(ProjectStory, 'stories'),
+      artifactCountAgg(ActivityDiagram, 'activityDiagrams'),
+      artifactCountAgg(UseCaseDiagram, 'useCaseDiagrams'),
+      artifactCountAgg(SequenceDiagram, 'sequenceDiagrams'),
+      artifactCountAgg(ClassDiagram, 'classDiagrams'),
+      artifactCountAgg(DesignPattern, 'designPatterns'),
+      artifactCountAgg(Mockup, 'mockups')
     ]);
 
-    // Helper function to update the stats map
-    const updateStats = (counts, projectKey, statKey) => {
-      counts.forEach(item => {
-        const projectId = item._id.toString();
-        if (statsMap[projectId]) {
-          statsMap[projectId][projectKey].total = item.total;
-        }
-      });
-    };
+    // Review counts
+    const reviewCountAgg = (Model, key, field) =>
+      Model.aggregate([
+        { $match: { project: { $in: projectIds }, reviewer: systemUserId } },
+        { $group: { _id: { project: '$project', item: `$${field}` } } },
+        { $group: { _id: '$_id.project', reviewed: { $sum: 1 } } }
+      ]).then(res => updateReviewStats(res, key, statsMap));
 
-    const updateReviewStats = (counts, projectKey) => {
-      counts.forEach(item => {
-        const projectId = item._id.toString();
-        if (statsMap[projectId]) {
-          statsMap[projectId][projectKey].reviewed = item.reviewed;
-        }
-      });
-    };
+    await Promise.all([
+      reviewCountAgg(RequirementReview, 'requirements', 'requirement'),
+      reviewCountAgg(StoryReview, 'stories', 'story'),
+      reviewCountAgg(ActivityDiagramReview, 'activityDiagrams', 'activityDiagram'),
+      reviewCountAgg(UseCaseDiagramReview, 'useCaseDiagrams', 'useCaseDiagram'),
+      reviewCountAgg(SequenceDiagramReview, 'sequenceDiagrams', 'sequenceDiagram'),
+      reviewCountAgg(ClassDiagramReview, 'classDiagrams', 'classDiagram'),
+      reviewCountAgg(DesignPatternReview, 'designPatterns', 'designPattern'),
+      reviewCountAgg(MockupReview, 'mockups', 'mockup')
+    ]);
 
-    // Update totals
-    updateStats(requirementsCounts, 'requirements', 'total');
-    updateStats(storiesCounts, 'stories', 'total');
-    updateStats(activityDiagramsCounts, 'activityDiagrams', 'total');
-    updateStats(useCaseDiagramsCounts, 'useCaseDiagrams', 'total');
-    updateStats(sequenceDiagramsCounts, 'sequenceDiagrams', 'total');
-    updateStats(classDiagramsCounts, 'classDiagrams', 'total');
-    updateStats(designPatternsCounts, 'designPatterns', 'total');
-    updateStats(mockupsCounts, 'mockups', 'total');
+    // Rating averages
+    const ratingAgg = (Model, key) =>
+      Model.aggregate([
+        { $match: { project: { $in: projectIds }, reviewer: systemUserId } },
+        { $group: { _id: '$project', averageRating: { $avg: '$rating' } } }
+      ]).then(res => updateRatingStats(res, key, statsMap));
 
-    // Update review counts
-    updateReviewStats(requirementReviewCounts, 'requirements');
-    updateReviewStats(storyReviewCounts, 'stories');
-    updateReviewStats(activityDiagramReviewCounts, 'activityDiagrams');
-    updateReviewStats(useCaseDiagramReviewCounts, 'useCaseDiagrams');
-    updateReviewStats(sequenceDiagramReviewCounts, 'sequenceDiagrams');
-    updateReviewStats(classDiagramReviewCounts, 'classDiagrams');
-    updateReviewStats(designPatternReviewCounts, 'designPatterns');
-    updateReviewStats(mockupReviewCounts, 'mockups');
+    await Promise.all([
+      ratingAgg(RequirementReview, 'requirements'),
+      ratingAgg(StoryReview, 'stories'),
+      ratingAgg(ActivityDiagramReview, 'activityDiagrams'),
+      ratingAgg(UseCaseDiagramReview, 'useCaseDiagrams'),
+      ratingAgg(SequenceDiagramReview, 'sequenceDiagrams'),
+      ratingAgg(ClassDiagramReview, 'classDiagrams'),
+      ratingAgg(DesignPatternReview, 'designPatterns'),
+      ratingAgg(MockupReview, 'mockups')
+    ]);
 
-    // Construct the final response
-    const projectsStats = projects.map(project => {
+    // === Build response ===
+
+    let projectsStats = projects.map(project => {
       const projectId = project._id.toString();
       const stats = statsMap[projectId];
-      
-      // Calculate totals
-      const totalArtifacts = Object.values(stats).reduce(
-        (sum, stat) => sum + (stat.total || 0), 0
-      );
-      
-      const totalReviews = Object.values(stats).reduce(
-        (sum, stat) => sum + (stat.reviewed || 0), 0
-      );
+      const {
+        totalArtifacts,
+        totalReviews,
+        overallAverageGrade
+      } = computeOverallStats(stats);
 
       return {
         id: project._id,
@@ -318,13 +199,22 @@ exports.getProjectsStats = async (req, res) => {
         stats,
         totalArtifacts,
         totalReviews,
+        overallAverageGrade,
         tags: project.tags || [],
         motto: project.motto || '',
         creatorId: project.creatorId
       };
     });
 
-    // Return the response with pagination metadata
+    // Sort by computed field if required
+    if (sortField === 'overallAverageGrade') {
+      projectsStats.sort((a, b) => {
+        const valueA = a.overallAverageGrade || 0;
+        const valueB = b.overallAverageGrade || 0;
+        return (valueA - valueB) * sortDirection;
+      });
+    }
+
     res.json({
       projects: projectsStats,
       pagination: {
@@ -352,7 +242,6 @@ exports.getProject = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     let project;
-
     // Admin can access any project
     if (user.role === 'Admin') {
       project = await Project.findById(req.params.id);
@@ -378,6 +267,182 @@ exports.getProject = async (req, res) => {
     });
   } catch (error) {
     console.error('Get project error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.getProjectStats = async (req, res) => {
+  try {
+    if (!req.auth?.isAuthenticated || !req.auth.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    const user = await User.findById(req.auth.user._id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const { projectId } = req.params;
+    const systemUserId = new mongoose.Types.ObjectId(SYSTEM_USER_ID);
+
+    // Access control
+    let projectQuery = { _id: projectId };
+    if (user.role !== 'Admin') {
+      projectQuery.users = { $in: [user._id] };
+    }
+
+    const project = await Project.findOne(projectQuery);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found or not authorized' });
+    }
+
+    // Initialize statsMap using same format
+    const statsMap = initStatsMap([projectId]);
+    const stats = statsMap[projectId];
+
+    const [
+      // Artifact counts
+      requirementsCount,
+      storiesCount,
+      activityDiagramsCount,
+      useCaseDiagramsCount,
+      sequenceDiagramsCount,
+      classDiagramsCount,
+      designPatternsCount,
+      mockupsCount,
+
+      // Review counts
+      requirementReviewCount,
+      storyReviewCount,
+      activityDiagramReviewCount,
+      useCaseDiagramReviewCount,
+      sequenceDiagramReviewCount,
+      classDiagramReviewCount,
+      designPatternReviewCount,
+      mockupReviewCount,
+
+      // Ratings
+      requirementRating,
+      storyRating,
+      activityDiagramRating,
+      useCaseDiagramRating,
+      sequenceDiagramRating,
+      classDiagramRating,
+      designPatternRating,
+      mockupRating
+    ] = await Promise.all([
+      ProjectRequirement.countDocuments({ project: projectId }),
+      ProjectStory.countDocuments({ project: projectId }),
+      ActivityDiagram.countDocuments({ project: projectId }),
+      UseCaseDiagram.countDocuments({ project: projectId }),
+      SequenceDiagram.countDocuments({ project: projectId }),
+      ClassDiagram.countDocuments({ project: projectId }),
+      DesignPattern.countDocuments({ project: projectId }),
+      Mockup.countDocuments({ project: projectId }),
+
+      RequirementReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: "$requirement" } },
+        { $count: "reviewed" }
+      ]),
+      StoryReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: "$story" } },
+        { $count: "reviewed" }
+      ]),
+      ActivityDiagramReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: "$activityDiagram" } },
+        { $count: "reviewed" }
+      ]),
+      UseCaseDiagramReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: "$useCaseDiagram" } },
+        { $count: "reviewed" }
+      ]),
+      SequenceDiagramReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: "$sequenceDiagram" } },
+        { $count: "reviewed" }
+      ]),
+      ClassDiagramReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: "$classDiagram" } },
+        { $count: "reviewed" }
+      ]),
+      DesignPatternReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: "$designPattern" } },
+        { $count: "reviewed" }
+      ]),
+      MockupReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: "$mockup" } },
+        { $count: "reviewed" }
+      ]),
+
+      // Average ratings
+      RequirementReview.aggregate([{ $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } }, { $group: { _id: null, averageRating: { $avg: "$rating" } } }]),
+      StoryReview.aggregate([{ $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } }, { $group: { _id: null, averageRating: { $avg: "$rating" } } }]),
+      ActivityDiagramReview.aggregate([{ $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } }, { $group: { _id: null, averageRating: { $avg: "$rating" } } }]),
+      UseCaseDiagramReview.aggregate([{ $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } }, { $group: { _id: null, averageRating: { $avg: "$rating" } } }]),
+      SequenceDiagramReview.aggregate([{ $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } }, { $group: { _id: null, averageRating: { $avg: "$rating" } } }]),
+      ClassDiagramReview.aggregate([{ $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } }, { $group: { _id: null, averageRating: { $avg: "$rating" } } }]),
+      DesignPatternReview.aggregate([{ $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } }, { $group: { _id: null, averageRating: { $avg: "$rating" } } }]),
+      MockupReview.aggregate([{ $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } }, { $group: { _id: null, averageRating: { $avg: "$rating" } } }])
+    ]);
+
+    // Set totals
+    stats.requirements.total = requirementsCount;
+    stats.stories.total = storiesCount;
+    stats.activityDiagrams.total = activityDiagramsCount;
+    stats.useCaseDiagrams.total = useCaseDiagramsCount;
+    stats.sequenceDiagrams.total = sequenceDiagramsCount;
+    stats.classDiagrams.total = classDiagramsCount;
+    stats.designPatterns.total = designPatternsCount;
+    stats.mockups.total = mockupsCount;
+
+    // Set reviewed counts
+    stats.requirements.reviewed = requirementReviewCount[0]?.reviewed || 0;
+    stats.stories.reviewed = storyReviewCount[0]?.reviewed || 0;
+    stats.activityDiagrams.reviewed = activityDiagramReviewCount[0]?.reviewed || 0;
+    stats.useCaseDiagrams.reviewed = useCaseDiagramReviewCount[0]?.reviewed || 0;
+    stats.sequenceDiagrams.reviewed = sequenceDiagramReviewCount[0]?.reviewed || 0;
+    stats.classDiagrams.reviewed = classDiagramReviewCount[0]?.reviewed || 0;
+    stats.designPatterns.reviewed = designPatternReviewCount[0]?.reviewed || 0;
+    stats.mockups.reviewed = mockupReviewCount[0]?.reviewed || 0;
+
+    // Set ratings
+    stats.requirements.averageRating = parseFloat((requirementRating[0]?.averageRating || 0).toFixed(2));
+    stats.stories.averageRating = parseFloat((storyRating[0]?.averageRating || 0).toFixed(2));
+    stats.activityDiagrams.averageRating = parseFloat((activityDiagramRating[0]?.averageRating || 0).toFixed(2));
+    stats.useCaseDiagrams.averageRating = parseFloat((useCaseDiagramRating[0]?.averageRating || 0).toFixed(2));
+    stats.sequenceDiagrams.averageRating = parseFloat((sequenceDiagramRating[0]?.averageRating || 0).toFixed(2));
+    stats.classDiagrams.averageRating = parseFloat((classDiagramRating[0]?.averageRating || 0).toFixed(2));
+    stats.designPatterns.averageRating = parseFloat((designPatternRating[0]?.averageRating || 0).toFixed(2));
+    stats.mockups.averageRating = parseFloat((mockupRating[0]?.averageRating || 0).toFixed(2));
+    console.log('Project stats:', stats);
+    // Compute global stats
+    const {
+      totalArtifacts,
+      totalReviews,
+      overallAverageGrade,
+      completionPercentage
+    } = computeOverallStats(stats);
+    res.json({
+      project: {
+        id: project._id,
+        name: project.name,
+        description: project.description,
+        createdAt: project.createdAt,
+        tags: project.tags || [],
+        motto: project.motto || '',
+        creatorId: project.creatorId
+      },
+      stats,
+      totalArtifacts,
+      totalReviews,
+      overallAverageGrade,
+      completionPercentage
+    });
+  } catch (error) {
+    console.error('Get project stats error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -416,6 +481,233 @@ exports.createProject = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getProjectStats = async (req, res) => {
+  try {
+    if (!req.auth?.isAuthenticated || !req.auth.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const user = await User.findById(req.auth.user._id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const systemUserId = new mongoose.Types.ObjectId(SYSTEM_USER_ID);
+    const { projectId } = req.params;
+
+    // Check if user has access to this project
+    let projectQuery = { _id: projectId };
+    if (user.role !== 'Admin') {
+      projectQuery.users = { $in: [user._id] };
+    }
+
+    const project = await Project.findOne(projectQuery);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found or not authorized' });
+    }
+
+    // Prepare base stats object
+    const stats = {
+      requirements: { total: 0, reviewed: 0, averageRating: 0 },
+      stories: { total: 0, reviewed: 0, averageRating: 0 },
+      activityDiagrams: { total: 0, reviewed: 0, averageRating: 0 },
+      useCaseDiagrams: { total: 0, reviewed: 0, averageRating: 0 },
+      sequenceDiagrams: { total: 0, reviewed: 0, averageRating: 0 },
+      classDiagrams: { total: 0, reviewed: 0, averageRating: 0 },
+      designPatterns: { total: 0, reviewed: 0, averageRating: 0 },
+      mockups: { total: 0, reviewed: 0, averageRating: 0 }
+    };
+
+    // Run all aggregations in parallel for better performance
+    const [
+      // Artifact counts
+      requirementsCount,
+      storiesCount,
+      activityDiagramsCount,
+      useCaseDiagramsCount,
+      sequenceDiagramsCount,
+      classDiagramsCount,
+      designPatternsCount,
+      mockupsCount,
+
+      // Review counts
+      requirementReviewsCount,
+      storyReviewsCount,
+      activityDiagramReviewsCount,
+      useCaseDiagramReviewsCount,
+      sequenceDiagramReviewsCount,
+      classDiagramReviewsCount,
+      designPatternReviewsCount,
+      mockupReviewsCount,
+
+      // Average ratings
+      requirementRating,
+      storyRating,
+      activityDiagramRating,
+      useCaseDiagramRating,
+      sequenceDiagramRating,
+      classDiagramRating,
+      designPatternRating,
+      mockupRating
+    ] = await Promise.all([
+      // Count artifacts
+      ProjectRequirement.countDocuments({ project: projectId }),
+      ProjectStory.countDocuments({ project: projectId }),
+      ActivityDiagram.countDocuments({ project: projectId }),
+      UseCaseDiagram.countDocuments({ project: projectId }),
+      SequenceDiagram.countDocuments({ project: projectId }),
+      ClassDiagram.countDocuments({ project: projectId }),
+      DesignPattern.countDocuments({ project: projectId }),
+      Mockup.countDocuments({ project: projectId }),
+
+      // Count reviews by system user
+      RequirementReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: { requirement: "$requirement" } } },
+        { $count: "reviewed" }
+      ]),
+      StoryReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: { story: "$story" } } },
+        { $count: "reviewed" }
+      ]),
+      ActivityDiagramReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: { diagram: "$activityDiagram" } } },
+        { $count: "reviewed" }
+      ]),
+      UseCaseDiagramReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: { diagram: "$useCaseDiagram" } } },
+        { $count: "reviewed" }
+      ]),
+      SequenceDiagramReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: { diagram: "$sequenceDiagram" } } },
+        { $count: "reviewed" }
+      ]),
+      ClassDiagramReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: { diagram: "$classDiagram" } } },
+        { $count: "reviewed" }
+      ]),
+      DesignPatternReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: { pattern: "$designPattern" } } },
+        { $count: "reviewed" }
+      ]),
+      MockupReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: { mockup: "$mockup" } } },
+        { $count: "reviewed" }
+      ]),
+
+      // Get average ratings for each artifact type
+      RequirementReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: null, averageRating: { $avg: "$rating" } } }
+      ]),
+      StoryReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: null, averageRating: { $avg: "$rating" } } }
+      ]),
+      ActivityDiagramReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: null, averageRating: { $avg: "$rating" } } }
+      ]),
+      UseCaseDiagramReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: null, averageRating: { $avg: "$rating" } } }
+      ]),
+      SequenceDiagramReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: null, averageRating: { $avg: "$rating" } } }
+      ]),
+      ClassDiagramReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: null, averageRating: { $avg: "$rating" } } }
+      ]),
+      DesignPatternReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: null, averageRating: { $avg: "$rating" } } }
+      ]),
+      MockupReview.aggregate([
+        { $match: { project: new mongoose.Types.ObjectId(projectId), reviewer: systemUserId } },
+        { $group: { _id: null, averageRating: { $avg: "$rating" } } }
+      ])
+    ]);
+
+    // Update stats object with counts
+    stats.requirements.total = requirementsCount;
+    stats.stories.total = storiesCount;
+    stats.activityDiagrams.total = activityDiagramsCount;
+    stats.useCaseDiagrams.total = useCaseDiagramsCount;
+    stats.sequenceDiagrams.total = sequenceDiagramsCount;
+    stats.classDiagrams.total = classDiagramsCount;
+    stats.designPatterns.total = designPatternsCount;
+    stats.mockups.total = mockupsCount;
+
+    // Update review counts (handle empty array case)
+    stats.requirements.reviewed = requirementReviewsCount[0]?.reviewed || 0;
+    stats.stories.reviewed = storyReviewsCount[0]?.reviewed || 0;
+    stats.activityDiagrams.reviewed = activityDiagramReviewsCount[0]?.reviewed || 0;
+    stats.useCaseDiagrams.reviewed = useCaseDiagramReviewsCount[0]?.reviewed || 0;
+    stats.sequenceDiagrams.reviewed = sequenceDiagramReviewsCount[0]?.reviewed || 0;
+    stats.classDiagrams.reviewed = classDiagramReviewsCount[0]?.reviewed || 0;
+    stats.designPatterns.reviewed = designPatternReviewsCount[0]?.reviewed || 0;
+    stats.mockups.reviewed = mockupReviewsCount[0]?.reviewed || 0;
+
+    // Update average ratings (handle empty array case)
+    stats.requirements.averageRating = parseFloat((requirementRating[0]?.averageRating || 0).toFixed(2));
+    stats.stories.averageRating = parseFloat((storyRating[0]?.averageRating || 0).toFixed(2));
+    stats.activityDiagrams.averageRating = parseFloat((activityDiagramRating[0]?.averageRating || 0).toFixed(2));
+    stats.useCaseDiagrams.averageRating = parseFloat((useCaseDiagramRating[0]?.averageRating || 0).toFixed(2));
+    stats.sequenceDiagrams.averageRating = parseFloat((sequenceDiagramRating[0]?.averageRating || 0).toFixed(2));
+    stats.classDiagrams.averageRating = parseFloat((classDiagramRating[0]?.averageRating || 0).toFixed(2));
+    stats.designPatterns.averageRating = parseFloat((designPatternRating[0]?.averageRating || 0).toFixed(2));
+    stats.mockups.averageRating = parseFloat((mockupRating[0]?.averageRating || 0).toFixed(2));
+
+    // Calculate overall stats
+    const totalArtifacts = Object.values(stats).reduce((sum, stat) => sum + stat.total, 0);
+    const totalReviews = Object.values(stats).reduce((sum, stat) => sum + stat.reviewed, 0);
+
+    // Calculate overall average grade
+    let totalRating = 0;
+    let ratedArtifactsCount = 0;
+
+    Object.values(stats).forEach(stat => {
+      if (stat.averageRating > 0) {
+        totalRating += stat.averageRating;
+        ratedArtifactsCount++;
+      }
+    });
+
+    const overallAverageGrade = ratedArtifactsCount > 0
+      ? parseFloat((totalRating / ratedArtifactsCount).toFixed(2))
+      : 0;
+
+    // Return project stats
+    res.json({
+      project: {
+        id: project._id,
+        name: project.name,
+        description: project.description,
+        createdAt: project.createdAt,
+        tags: project.tags || [],
+        motto: project.motto || '',
+        creatorId: project.creatorId
+      },
+      stats,
+      totalArtifacts,
+      totalReviews,
+      overallAverageGrade,
+      completionPercentage: totalArtifacts > 0
+        ? parseFloat(((totalReviews / totalArtifacts) * 100).toFixed(2))
+        : 0
+    });
+  } catch (error) {
+    console.error('Get project stats error:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 };
 

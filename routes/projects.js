@@ -98,6 +98,58 @@ router.get('/stats', auth, projectsController.getProjectsStats);
 
 /**
  * @swagger
+ * /api/projects/{projectId}/stats:
+ *   get:
+ *     summary: Get detailed statistics for a single project
+ *     tags: [Projects]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Project ID
+ *     responses:
+ *       200:
+ *         description: Detailed project statistics with artifact counts, review progress and grades
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 project:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     description:
+ *                       type: string
+ *                 stats:
+ *                   type: object
+ *                 totalArtifacts:
+ *                   type: integer
+ *                 totalReviews:
+ *                   type: integer
+ *                 overallAverageGrade:
+ *                   type: number
+ *                   format: float
+ *                 completionPercentage:
+ *                   type: number
+ *                   format: float
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Project not found or not authorized
+ */
+router.get('/:projectId/stats', auth, projectsController.getProjectStats);
+
+
+/**
+ * @swagger
  * /api/projects:
  *   post:
  *     summary: Create a new project
