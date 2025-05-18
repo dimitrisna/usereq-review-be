@@ -25,16 +25,25 @@ const {
   UseCaseDiagramReview
 } = require('../models');
 
+// System user constant for reviews
+const SYSTEM_USER_ID = process.env.SYSTEM_USER_ID || '000000000000000000000000';
+
 // Helper for validating project access
 const validateProjectAccess = async (user, projectId) => {
-  const project = await Project.findById(projectId);
-  if (!project) throw new Error('Project not found');
+  // For admins, allow access to all projects
+  if (user.role === 'Admin') {
+    const project = await Project.findById(projectId);
+    if (!project) throw new Error('Project not found');
+    return project;
+  }
 
-  const isCreator = project.creatorId.toString() === user._id.toString();
-  const isMember = project.users.includes(user._id);
-  const isAdmin = user.role === 'Admin';
+  // For regular users, check if they are a member of the project
+  const project = await Project.findOne({
+    _id: projectId,
+    users: { $in: [user._id] }
+  });
 
-  if (!isAdmin && !isCreator && !isMember) {
+  if (!project) {
     throw new Error('Not authorized to access this project');
   }
 
@@ -67,7 +76,10 @@ exports.getProjectDashboard = async (req, res) => {
     const calculateStats = async (items, model, field) => {
       if (items.length > 0) {
         const ids = items.map(item => item._id);
-        const reviewed = await model.countDocuments({ [field]: { $in: ids } });
+        const reviewed = await model.countDocuments({
+          [field]: { $in: ids },
+          reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)  // Only count official reviews
+        });
         return { total: ids.length, reviewed };
       }
       return { total: 0, reviewed: 0 };
@@ -133,9 +145,11 @@ exports.getMockupNavigationTree = async (req, res) => {
       };
     });
 
+    // Changed to use SYSTEM_USER_ID
     const reviews = await MockupReview.find({
       mockup: { $in: projectMockups.map(m => m._id) },
-      reviewer: user._id
+      reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+
     });
 
     reviews.forEach(review => {
@@ -144,6 +158,7 @@ exports.getMockupNavigationTree = async (req, res) => {
         mockupMap[id].reviewed = true;
         mockupMap[id].rating = review.rating;
         mockupMap[id].comment = review.comment;
+        mockupMap[id].isEditable = user.role === 'Admin'; // Only admins can edit
       }
     });
 
@@ -167,6 +182,11 @@ exports.submitBulkReviews = async (req, res) => {
     if (!req.auth?.isAuthenticated || !req.auth.user) return res.status(401).json({ message: 'Authentication required' });
     const user = await User.findById(req.auth.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Only allow admins to submit reviews
+    if (user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Only administrators can submit reviews' });
+    }
 
     const { reviews } = req.body;
     if (!Array.isArray(reviews) || reviews.length === 0) {
@@ -203,14 +223,20 @@ exports.submitBulkReviews = async (req, res) => {
 
         const reviewPayload = {
           [artifactField]: artifactId,
-          reviewer: user._id,
+          reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+          , // Use system user ID
           rating,
           comment,
           project: artifact.project,
           ...scores
         };
 
-        const existingReview = await ReviewModel.findOne({ [artifactField]: artifactId, reviewer: user._id });
+        const existingReview = await ReviewModel.findOne({
+          [artifactField]: artifactId,
+          reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+
+        });
+
         if (existingReview) {
           Object.assign(existingReview, reviewPayload);
           await existingReview.save();
@@ -244,7 +270,7 @@ exports.getDesignPatternsReviewData = async (req, res) => {
 
     const { projectId } = req.params;
 
-    // Get project info first (this can return the project object)
+    // This function will handle admin vs regular user access differently
     const project = await validateProjectAccess(user, projectId);
 
     // Get design patterns with deep population
@@ -258,10 +284,11 @@ exports.getDesignPatternsReviewData = async (req, res) => {
         select: 'title description url filename mimetype'
       });
 
-    // Get user's reviews
+    // Get SYSTEM USER's reviews (not the current user's)
     const reviews = await DesignPatternReview.find({
       designPattern: { $in: designPatterns.map(p => p._id) },
-      reviewer: user._id
+      reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+
     });
 
     const reviewMap = new Map();
@@ -269,7 +296,7 @@ exports.getDesignPatternsReviewData = async (req, res) => {
       reviewMap.set(review.designPattern.toString(), review);
     });
 
-    // Get rubric evaluation and general comment
+    // Get rubric data, general comments, etc.
     const [rubricEvaluation, generalComment, aggregateRubric] = await Promise.all([
       RubricEvaluation.findOne({
         project: projectId,
@@ -307,7 +334,7 @@ exports.getDesignPatternsReviewData = async (req, res) => {
       };
     }
 
-    // Build response data
+    // Build response data with isEditable flag
     const patternsWithReviews = designPatterns.map(pattern => {
       const review = reviewMap.get(pattern._id.toString());
 
@@ -332,7 +359,8 @@ exports.getDesignPatternsReviewData = async (req, res) => {
           implementationScore: review.implementationScore,
           flexibilityScore: review.flexibilityScore,
           documentationScore: review.documentationScore
-        } : null
+        } : null,
+        isEditable: user.role === 'Admin' // Only admins can edit
       };
     });
 
@@ -412,7 +440,7 @@ exports.getActivityDiagramsReviewData = async (req, res) => {
 
     const { projectId } = req.params;
 
-    // Get project info first
+    // This function will handle admin vs regular user access differently
     const project = await validateProjectAccess(user, projectId);
 
     // Get activity diagrams with deep population
@@ -422,10 +450,11 @@ exports.getActivityDiagramsReviewData = async (req, res) => {
         select: 'title text seq'
       });
 
-    // Get user's reviews
+    // Get SYSTEM USER's reviews (not the current user's)
     const reviews = await ActivityDiagramReview.find({
       activityDiagram: { $in: activityDiagrams.map(d => d._id) },
-      reviewer: user._id
+      reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+
     });
 
     const reviewMap = new Map();
@@ -433,7 +462,7 @@ exports.getActivityDiagramsReviewData = async (req, res) => {
       reviewMap.set(review.activityDiagram.toString(), review);
     });
 
-    // Get rubric evaluation and general comment
+    // Get rubric data, general comments, etc.
     const [rubricEvaluation, generalComment, aggregateRubric] = await Promise.all([
       RubricEvaluation.findOne({
         project: projectId,
@@ -471,7 +500,7 @@ exports.getActivityDiagramsReviewData = async (req, res) => {
       };
     }
 
-    // Build response data
+    // Build response data with isEditable flag
     const diagramsWithReviews = activityDiagrams.map(diagram => {
       const review = reviewMap.get(diagram._id.toString());
 
@@ -496,7 +525,8 @@ exports.getActivityDiagramsReviewData = async (req, res) => {
           parallelActivitiesScore: review.parallelActivitiesScore,
           startEndPointsScore: review.startEndPointsScore,
           clarityScore: review.clarityScore
-        } : null
+        } : null,
+        isEditable: user.role === 'Admin' // Only admins can edit
       };
     });
 
@@ -526,7 +556,7 @@ exports.getClassDiagramsReviewData = async (req, res) => {
 
     const { projectId } = req.params;
 
-    // Get project info first
+    // This function will handle admin vs regular user access differently
     const project = await validateProjectAccess(user, projectId);
 
     // Get class diagrams with deep population
@@ -536,10 +566,11 @@ exports.getClassDiagramsReviewData = async (req, res) => {
         select: 'text seq type user_priority system_priority description'
       });
 
-    // Get user's reviews
+    // Get SYSTEM USER's reviews (not the current user's)
     const reviews = await ClassDiagramReview.find({
       classDiagram: { $in: classDiagrams.map(d => d._id) },
-      reviewer: user._id
+      reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+
     });
 
     const reviewMap = new Map();
@@ -547,7 +578,7 @@ exports.getClassDiagramsReviewData = async (req, res) => {
       reviewMap.set(review.classDiagram.toString(), review);
     });
 
-    // Get rubric evaluation and general comment
+    // Get rubric data, general comments, etc.
     const [rubricEvaluation, generalComment, aggregateRubric] = await Promise.all([
       RubricEvaluation.findOne({
         project: projectId,
@@ -585,7 +616,7 @@ exports.getClassDiagramsReviewData = async (req, res) => {
       };
     }
 
-    // Build response data
+    // Build response data with isEditable flag
     const diagramsWithReviews = classDiagrams.map(diagram => {
       const review = reviewMap.get(diagram._id.toString());
 
@@ -610,7 +641,8 @@ exports.getClassDiagramsReviewData = async (req, res) => {
           completenessScore: review.completenessScore,
           clarityScore: review.clarityScore,
           designPrinciplesScore: review.designPrinciplesScore
-        } : null
+        } : null,
+        isEditable: user.role === 'Admin' // Only admins can edit
       };
     });
 
@@ -640,7 +672,7 @@ exports.getSequenceDiagramsReviewData = async (req, res) => {
 
     const { projectId } = req.params;
 
-    // Get project info first
+    // This function will handle admin vs regular user access differently
     const project = await validateProjectAccess(user, projectId);
 
     // Get sequence diagrams with deep population
@@ -650,10 +682,11 @@ exports.getSequenceDiagramsReviewData = async (req, res) => {
         select: 'title text'
       });
 
-    // Get user's reviews
+    // Get SYSTEM USER's reviews (not the current user's)
     const reviews = await SequenceDiagramReview.find({
       sequenceDiagram: { $in: sequenceDiagrams.map(d => d._id) },
-      reviewer: user._id
+      reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+
     });
 
     const reviewMap = new Map();
@@ -661,7 +694,7 @@ exports.getSequenceDiagramsReviewData = async (req, res) => {
       reviewMap.set(review.sequenceDiagram.toString(), review);
     });
 
-    // Get rubric evaluation and general comment
+    // Get rubric data, general comments, etc.
     const [rubricEvaluation, generalComment, aggregateRubric] = await Promise.all([
       RubricEvaluation.findOne({
         project: projectId,
@@ -699,7 +732,7 @@ exports.getSequenceDiagramsReviewData = async (req, res) => {
       };
     }
 
-    // Build response data
+    // Build response data with isEditable flag
     const diagramsWithReviews = sequenceDiagrams.map(diagram => {
       const review = reviewMap.get(diagram._id.toString());
 
@@ -724,7 +757,8 @@ exports.getSequenceDiagramsReviewData = async (req, res) => {
           returnValuesScore: review.returnValuesScore,
           exceptionHandlingScore: review.exceptionHandlingScore,
           completenessScore: review.completenessScore
-        } : null
+        } : null,
+        isEditable: user.role === 'Admin' // Only admins can edit
       };
     });
 
@@ -754,7 +788,7 @@ exports.getUseCaseDiagramsReviewData = async (req, res) => {
 
     const { projectId } = req.params;
 
-    // Get project info first
+    // This function will handle admin vs regular user access differently
     const project = await validateProjectAccess(user, projectId);
 
     // Get use case diagrams with deep population
@@ -764,10 +798,11 @@ exports.getUseCaseDiagramsReviewData = async (req, res) => {
         select: 'text seq type user_priority system_priority description'
       });
 
-    // Get user's reviews
+    // Get SYSTEM USER's reviews (not the current user's)
     const reviews = await UseCaseDiagramReview.find({
       useCaseDiagram: { $in: useCaseDiagrams.map(d => d._id) },
-      reviewer: user._id
+      reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+
     });
 
     const reviewMap = new Map();
@@ -775,7 +810,7 @@ exports.getUseCaseDiagramsReviewData = async (req, res) => {
       reviewMap.set(review.useCaseDiagram.toString(), review);
     });
 
-    // Get rubric evaluation and general comment
+    // Get rubric data, general comments, etc.
     const [rubricEvaluation, generalComment, aggregateRubric] = await Promise.all([
       RubricEvaluation.findOne({
         project: projectId,
@@ -813,7 +848,7 @@ exports.getUseCaseDiagramsReviewData = async (req, res) => {
       };
     }
 
-    // Build response data
+    // Build response data with isEditable flag
     const diagramsWithReviews = useCaseDiagrams.map(diagram => {
       const review = reviewMap.get(diagram._id.toString());
 
@@ -838,7 +873,8 @@ exports.getUseCaseDiagramsReviewData = async (req, res) => {
           relationshipsScore: review.relationshipsScore,
           systemBoundaryScore: review.systemBoundaryScore,
           completenessScore: review.completenessScore
-        } : null
+        } : null,
+        isEditable: user.role === 'Admin' // Only admins can edit
       };
     });
 
@@ -868,7 +904,7 @@ exports.getMockupsReviewData = async (req, res) => {
 
     const { projectId } = req.params;
 
-    // Get project info first
+    // This function will handle admin vs regular user access differently
     const project = await validateProjectAccess(user, projectId);
 
     // Get mockups with deep population
@@ -886,10 +922,11 @@ exports.getMockupsReviewData = async (req, res) => {
         select: 'title url'
       });
 
-    // Get user's reviews
+    // Get SYSTEM USER's reviews (not the current user's)
     const reviews = await MockupReview.find({
       mockup: { $in: mockups.map(m => m._id) },
-      reviewer: user._id
+      reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+
     });
 
     const reviewMap = new Map();
@@ -897,7 +934,7 @@ exports.getMockupsReviewData = async (req, res) => {
       reviewMap.set(review.mockup.toString(), review);
     });
 
-    // Get rubric evaluation and general comment
+    // Get rubric data, general comments, etc.
     const [rubricEvaluation, generalComment, aggregateRubric] = await Promise.all([
       RubricEvaluation.findOne({
         project: projectId,
@@ -935,7 +972,7 @@ exports.getMockupsReviewData = async (req, res) => {
       };
     }
 
-    // Build response data
+    // Build response data with isEditable flag
     const mockupsWithReviews = mockups.map(mockup => {
       const review = reviewMap.get(mockup._id.toString());
 
@@ -962,7 +999,8 @@ exports.getMockupsReviewData = async (req, res) => {
           flowScore: review.flowScore,
           completenessScore: review.completenessScore,
           userFriendlinessScore: review.userFriendlinessScore
-        } : null
+        } : null,
+        isEditable: user.role === 'Admin' // Only admins can edit
       };
     });
 
@@ -992,16 +1030,17 @@ exports.getRequirementsReviewData = async (req, res) => {
 
     const { projectId } = req.params;
 
-    // Get project info first
+    // This function will handle admin vs regular user access differently
     const project = await validateProjectAccess(user, projectId);
 
     // Get requirements
     const requirements = await ProjectRequirement.find({ project: projectId }).sort({ seq: 1 });
 
-    // Get user's reviews
+    // Get SYSTEM USER's reviews (not the current user's)
     const reviews = await RequirementReview.find({
       requirement: { $in: requirements.map(r => r._id) },
-      reviewer: user._id
+      reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+
     });
 
     const reviewMap = new Map();
@@ -1009,7 +1048,7 @@ exports.getRequirementsReviewData = async (req, res) => {
       reviewMap.set(review.requirement.toString(), review);
     });
 
-    // Get rubric evaluation and general comment
+    // Get rubric data, general comments, etc.
     const [rubricEvaluation, generalComment, aggregateRubric] = await Promise.all([
       RubricEvaluation.findOne({
         project: projectId,
@@ -1047,7 +1086,7 @@ exports.getRequirementsReviewData = async (req, res) => {
       };
     }
 
-    // Build response data
+    // Build response data with isEditable flag
     const requirementsWithReviews = requirements.map(req => {
       const review = reviewMap.get(req._id.toString());
 
@@ -1068,7 +1107,8 @@ exports.getRequirementsReviewData = async (req, res) => {
           feasibilityScore: review.feasibilityScore,
           necessityScore: review.necessityScore,
           prioritizationScore: review.prioritizationScore
-        } : null
+        } : null,
+        isEditable: user.role === 'Admin' // Only admins can edit
       };
     });
 
@@ -1098,7 +1138,7 @@ exports.getStoriesReviewData = async (req, res) => {
 
     const { projectId } = req.params;
 
-    // Get project info first
+    // This function will handle admin vs regular user access differently
     const project = await validateProjectAccess(user, projectId);
 
     // Get stories with linked requirements
@@ -1109,10 +1149,11 @@ exports.getStoriesReviewData = async (req, res) => {
         select: 'text seq type user_priority system_priority'
       });
 
-    // Get user's reviews
+    // Get SYSTEM USER's reviews (not the current user's)
     const reviews = await StoryReview.find({
       story: { $in: stories.map(s => s._id) },
-      reviewer: user._id
+      reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+
     });
 
     const reviewMap = new Map();
@@ -1120,7 +1161,7 @@ exports.getStoriesReviewData = async (req, res) => {
       reviewMap.set(review.story.toString(), review);
     });
 
-    // Get rubric evaluation and general comment
+    // Get rubric data, general comments, etc.
     const [rubricEvaluation, generalComment, aggregateRubric] = await Promise.all([
       RubricEvaluation.findOne({
         project: projectId,
@@ -1158,7 +1199,7 @@ exports.getStoriesReviewData = async (req, res) => {
       };
     }
 
-    // Build response data
+    // Build response data with isEditable flag
     const storiesWithReviews = stories.map(story => {
       const review = reviewMap.get(story._id.toString());
 
@@ -1177,7 +1218,8 @@ exports.getStoriesReviewData = async (req, res) => {
           acceptanceCriteriaScore: review.acceptanceCriteriaScore,
           sizeScore: review.sizeScore,
           independenceScore: review.independenceScore
-        } : null
+        } : null,
+        isEditable: user.role === 'Admin' // Only admins can edit
       };
     });
 

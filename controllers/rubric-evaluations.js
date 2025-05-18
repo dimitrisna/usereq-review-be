@@ -63,12 +63,25 @@ const DEFAULT_CRITERIA = {
     ]
 };
 
+// Helper for validating project access
 const validateProjectAccess = async (user, projectId) => {
+    // For admins, allow access to all projects
+    if (user.role === 'Admin') {
+        const project = await Project.findById(projectId);
+        if (!project) throw new Error('Project not found');
+        return project;
+    }
+    
+    // For regular users, check if they are a member of the project
     const project = await Project.findOne({
         _id: projectId,
         users: { $in: [user._id] }
     });
-    if (!project && (user.role !== 'Admin')) throw new Error('Not authorized to access this project');
+    
+    if (!project) {
+        throw new Error('Not authorized to access this project');
+    }
+    
     return project;
 };
 
@@ -84,6 +97,7 @@ exports.getRubricEvaluation = async (req, res) => {
 
         const { projectId, rubricType } = req.params;
 
+        // This function will handle admin vs regular user access differently
         try {
             await validateProjectAccess(user, projectId);
         } catch (error) {
@@ -109,7 +123,11 @@ exports.getRubricEvaluation = async (req, res) => {
             await evaluation.save();
         }
 
-        res.json({ evaluation });
+        // Add isEditable flag
+        const evaluationResponse = evaluation.toObject();
+        evaluationResponse.isEditable = user.role === 'Admin'; // Only admins can edit
+
+        res.json({ evaluation: evaluationResponse });
     } catch (error) {
         console.error('Get rubric evaluation error:', error);
         res.status(500).json({ error: 'Server error' });
@@ -126,8 +144,14 @@ exports.saveRubricEvaluation = async (req, res) => {
         const user = await User.findById(req.auth.user._id);
         if (!user) return res.status(404).json({ error: 'User not found' });
 
+        // Only admins can save rubric evaluations
+        if (user.role !== 'Admin') {
+            return res.status(403).json({ error: 'Only administrators can create or edit evaluations' });
+        }
+
         const { rubricType, criteria, overallScore, generalComment, project } = req.body;
 
+        // This function will handle admin vs regular user access differently
         try {
             await validateProjectAccess(user, project);
         } catch (error) {
@@ -150,13 +174,18 @@ exports.saveRubricEvaluation = async (req, res) => {
                 criteria: criteria || DEFAULT_CRITERIA[rubricType] || [],
                 overallScore: overallScore || 0,
                 generalComment: generalComment || '',
-                project: projectId,
+                project,
                 evaluator: user._id
             });
         }
 
         await evaluation.save();
-        res.status(201).json({ evaluation });
+        
+        // Add isEditable flag
+        const evaluationResponse = evaluation.toObject();
+        evaluationResponse.isEditable = user.role === 'Admin'; // Only admins can edit
+        
+        res.status(201).json({ evaluation: evaluationResponse });
     } catch (error) {
         console.error('Save rubric evaluation error:', error);
         res.status(500).json({ error: 'Server error' });
@@ -173,12 +202,18 @@ exports.saveGeneralComment = async (req, res) => {
         const user = await User.findById(req.auth.user._id);
         if (!user) return res.status(404).json({ error: 'User not found' });
 
+        // Only admins can save general comments
+        if (user.role !== 'Admin') {
+            return res.status(403).json({ error: 'Only administrators can create or edit comments' });
+        }
+
         const { projectId, rubricType, generalComment } = req.body;
 
         if (!generalComment) {
             return res.status(400).json({ error: 'General comment is required' });
         }
 
+        // This function will handle admin vs regular user access differently
         try {
             await validateProjectAccess(user, projectId);
         } catch (error) {
@@ -208,7 +243,8 @@ exports.saveGeneralComment = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'General comment saved successfully'
+            message: 'General comment saved successfully',
+            isEditable: user.role === 'Admin' // Only admins can edit
         });
     } catch (error) {
         console.error('Save general comment error:', error);
@@ -228,6 +264,7 @@ exports.calculateOverallScore = async (req, res) => {
 
         const { projectId, rubricType } = req.params;
 
+        // This function will handle admin vs regular user access differently
         try {
             await validateProjectAccess(user, projectId);
         } catch (error) {
@@ -252,7 +289,10 @@ exports.calculateOverallScore = async (req, res) => {
         evaluation.overallScore = overallScore;
         await evaluation.save();
 
-        res.json({ overallScore });
+        res.json({ 
+            overallScore,
+            isEditable: user.role === 'Admin' // Only admins can edit
+        });
     } catch (error) {
         console.error('Calculate overall score error:', error);
         res.status(500).json({ error: 'Server error' });

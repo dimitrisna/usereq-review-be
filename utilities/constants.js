@@ -30,4 +30,5 @@ module.exports = {
 		'updatedAt',
 	],
 	PROJECT_INTEGRATIONS: ['cyclopt'],
+	SYSTEM_USER_ID: "000000000000000000000000"
 };

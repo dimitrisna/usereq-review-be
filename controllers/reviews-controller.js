@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Project = require('../models/project');
 const User = require('../models/user');
 const GeneralComment = require('../models/general-comment');
+const { SYSTEM_USER_ID } = require('../utilities/constants');
 
 const {
   RequirementReview,
@@ -57,16 +58,24 @@ exports.reviewModelMap = {
   }
 };
 
-
-
-const validateProjectAccess = async (userId, projectId, userRole = 'User') => {
+const validateProjectAccess = async (user, projectId) => {
+  // For admins, allow access to all projects
+  if (user.role === 'Admin') {
+    const project = await Project.findById(projectId);
+    if (!project) throw new Error('Project not found');
+    return project;
+  }
+  
+  // For regular users, check if they are a member of the project
   const project = await Project.findOne({
     _id: projectId,
-    users: { $in: [userId] }
+    users: { $in: [user._id] }
   });
-  if (!project && userRole !== 'Admin') {
+  
+  if (!project) {
     throw new Error('Not authorized to access this project');
   }
+  
   return project;
 };
 
@@ -100,9 +109,14 @@ exports.submitReview = async (req, res) => {
     }
     const user = await User.findById(req.auth.user._id);
     if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    // Only admins can submit reviews
+    if (user.role !== 'Admin') {
+      return res.status(403).json({ error: 'Only administrators can create or edit reviews' });
+    }
 
+    // Get data from request
     const { artifactType, artifactId, rating, comment, ...scores } = req.body;
-    console.log('[BE:Reviews] Review data received:', { artifactType, artifactId, rating, comment, scores });
     
     const entry = this.reviewModelMap[artifactType];
     if (!entry) return res.status(400).json({ error: 'Invalid artifact type' });
@@ -111,49 +125,40 @@ exports.submitReview = async (req, res) => {
     const artifact = await ArtifactModel.findById(artifactId);
     if (!artifact) return res.status(404).json({ error: 'Artifact not found' });
 
-    await validateProjectAccess(user._id, artifact.project, user.role);
+    // This function will handle admin vs regular user access differently
+    const project = await validateProjectAccess(user, artifact.project);
 
-    // For designPattern, make sure scores are correctly mapped
+    // Create review data with SYSTEM_USER_ID as reviewer
     let reviewData = {
-      reviewer: user._id,
+      reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+,
       project: artifact.project,
       [refField]: artifactId,
       rating,
       comment,
+      ...scores
     };
     
-    // For design patterns, add score fields explicitly
-    if (artifactType === 'designPattern') {
-      reviewData = {
-        ...reviewData,
-        patternSelectionScore: scores.patternSelectionScore,
-        implementationScore: scores.implementationScore,
-        flexibilityScore: scores.flexibilityScore,
-        documentationScore: scores.documentationScore
-      };
-    } else {
-      // For other types
-      reviewData = { ...reviewData, ...scores };
-    }
+    // Look for existing review by SYSTEM_USER_ID
+    let review = await ReviewModel.findOne({ 
+      [refField]: artifactId, 
+      reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+ 
+    });
     
-    console.log('[BE:Reviews] Final review data to save:', reviewData);
-
-    let review = await ReviewModel.findOne({ [refField]: artifactId, reviewer: user._id });
     if (review) {
-      console.log('[BE:Reviews] Updating existing review');
-      // Update each field explicitly to ensure they're saved
+      // Update existing review
       Object.keys(reviewData).forEach(key => {
         if (reviewData[key] !== undefined) {
           review[key] = reviewData[key];
         }
       });
     } else {
-      console.log('[BE:Reviews] Creating new review');
+      // Create new review
       review = new ReviewModel(reviewData);
     }
 
     await review.save();
-    console.log('[BE:Reviews] Review saved successfully');
     
     // Update aggregate rubric data
     try {
@@ -166,19 +171,15 @@ exports.submitReview = async (req, res) => {
       console.error('[BE:Reviews] Error updating aggregate rubric:', err);
     }
     
-    // Return the complete updated review
+    // Return success
     res.status(201).json({ 
       success: true,
       review: {
         _id: review._id,
         rating: review.rating,
         comment: review.comment,
-        scores: {
-          patternSelectionScore: review.patternSelectionScore,
-          implementationScore: review.implementationScore,
-          flexibilityScore: review.flexibilityScore,
-          documentationScore: review.documentationScore
-        }
+        scores: { ...scores },
+        isEditable: user.role === 'Admin' // Only admins can edit
       }
     });
   } catch (error) {
@@ -196,23 +197,33 @@ exports.getMyReview = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const { artifactType, artifactId } = req.params;
-    const entry = reviewModelMap[artifactType];
+    const entry = this.reviewModelMap[artifactType];
     if (!entry) return res.status(400).json({ error: 'Invalid artifact type' });
 
     const { model: ReviewModel, refField, artifactModel: ArtifactModel } = entry;
     const artifact = await ArtifactModel.findById(artifactId);
     if (!artifact) return res.status(404).json({ error: 'Artifact not found' });
 
-    let review = await ReviewModel.findOne({ [refField]: artifactId, reviewer: user._id });
+    // This function will handle admin vs regular user access differently
+    await validateProjectAccess(user, artifact.project);
+
+    // Get SYSTEM USER's review (not the current user's)
+    let review = await ReviewModel.findOne({ 
+      [refField]: artifactId, 
+      reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+ 
+    });
 
     if (review) {
       review = await includeRubricScores(review.toObject(), artifactType, artifact.project, user._id);
+      review.isEditable = user.role === 'Admin'; // Only admins can edit
     } else {
       review = {
         artifactType,
         artifactId,
         rating: 0,
-        comment: ''
+        comment: '',
+        isEditable: user.role === 'Admin' // Only admins can edit
       };
     }
 
@@ -232,19 +243,27 @@ exports.getArtifactReviews = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const { artifactType, artifactId } = req.params;
-    const entry = reviewModelMap[artifactType];
+    const entry = this.reviewModelMap[artifactType];
     if (!entry) return res.status(400).json({ error: 'Invalid artifact type' });
 
     const { model: ReviewModel, refField, artifactModel: ArtifactModel } = entry;
     const artifact = await ArtifactModel.findById(artifactId);
     if (!artifact) return res.status(404).json({ error: 'Artifact not found' });
 
-    await validateProjectAccess(user._id, artifact.project, user.role);
+    // This function will handle admin vs regular user access differently
+    await validateProjectAccess(user, artifact.project);
 
     const reviews = await ReviewModel.find({ [refField]: artifactId })
       .populate('reviewer', 'fullName username');
+    
+    // Add isEditable flag to each review
+    const reviewsWithEditFlag = reviews.map(review => {
+      const reviewObj = review.toObject();
+      reviewObj.isEditable = user.role === 'Admin'; // Only admins can edit
+      return reviewObj;
+    });
 
-    res.json({ reviews });
+    res.json({ reviews: reviewsWithEditFlag });
   } catch (error) {
     console.error('Get artifact reviews error:', error);
     res.status(500).json({ error: error.message });
@@ -268,7 +287,8 @@ exports.saveGeneralComment = async (req, res) => {
       return res.status(400).json({ error: 'Invalid artifact type' });
     }
 
-    await validateProjectAccess(user._id, projectId, user.role);
+    // This function will handle admin vs regular user access differently
+    await validateProjectAccess(user, projectId);
 
     let generalComment = await GeneralComment.findOne({
       project: projectId,
@@ -288,7 +308,12 @@ exports.saveGeneralComment = async (req, res) => {
     }
 
     await generalComment.save();
-    res.status(201).json({ generalComment });
+    
+    // Add isEditable flag
+    const responseData = generalComment.toObject();
+    responseData.isEditable = user.role === 'Admin'; // Only admins can edit
+    
+    res.status(201).json({ generalComment: responseData });
   } catch (error) {
     console.error('Save general comment error:', error);
     res.status(500).json({ error: error.message });
@@ -304,7 +329,9 @@ exports.getGeneralComment = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const { projectId, artifactType } = req.params;
-    await validateProjectAccess(user._id, projectId, user.role);
+    
+    // This function will handle admin vs regular user access differently
+    await validateProjectAccess(user, projectId);
 
     const generalComment = await GeneralComment.findOne({
       project: projectId,
@@ -312,7 +339,13 @@ exports.getGeneralComment = async (req, res) => {
       user: user._id
     });
 
-    res.json({ comment: generalComment?.comment || '' });
+    // Add isEditable flag
+    const isEditable = user.role === 'Admin'; // Only admins can edit
+    
+    res.json({ 
+      comment: generalComment?.comment || '',
+      isEditable 
+    });
   } catch (error) {
     console.error('Get general comment error:', error);
     res.status(500).json({ error: error.message });

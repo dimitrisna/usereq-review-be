@@ -5,16 +5,27 @@ const Project = require('../models/project');
 const User = require('../models/user');
 const RubricEvaluation = require('../models/rubric-evaluation');
 const { reviewModelMap } = require('./reviews-controller');
+const { SYSTEM_USER_ID } = require('../utilities/constants');
 
 // Helper function to validate project access
-const validateProjectAccess = async (userId, projectId, userRole = 'User') => {
+const validateProjectAccess = async (user, projectId) => {
+  // For admins, allow access to all projects
+  if (user.role === 'Admin') {
+    const project = await Project.findById(projectId);
+    if (!project) throw new Error('Project not found');
+    return project;
+  }
+  
+  // For regular users, check if they are a member of the project
   const project = await Project.findOne({
     _id: projectId,
-    users: { $in: [userId] }
+    users: { $in: [user._id] }
   });
-  if (!project && userRole !== 'Admin') {
+  
+  if (!project) {
     throw new Error('Not authorized to access this project');
   }
+  
   return project;
 };
 
@@ -52,7 +63,12 @@ exports.updateAggregateRubric = async (projectId, artifactType) => {
     const criteriaFields = criteriaFieldsMap[artifactType];
     
     // Find all reviews for this artifact type in the project
-    const reviews = await ReviewModel.find({ project: projectId });
+    // Use SYSTEM_USER_ID for reviews
+    const reviews = await ReviewModel.find({ 
+      project: projectId,
+      reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
+
+    });
     
     if (!reviews || reviews.length === 0) {
       // No reviews yet, set defaults
@@ -132,8 +148,8 @@ exports.getAggregateRubric = async (req, res) => {
       return res.status(400).json({ error: 'Invalid artifact type' });
     }
 
-    // Validate project access
-    await validateProjectAccess(user._id, projectId, user.role);
+    // This function will handle admin vs regular user access differently
+    await validateProjectAccess(user, projectId);
     
     const aggregateRubric = await AggregateRubric.findOne({
       project: projectId,
@@ -144,7 +160,8 @@ exports.getAggregateRubric = async (req, res) => {
       return res.json({
         criteriaAverages: {},
         overallScore: 0,
-        reviewCount: 0
+        reviewCount: 0,
+        isEditable: user.role === 'Admin' // Only admins can edit
       });
     }
     
@@ -158,7 +175,8 @@ exports.getAggregateRubric = async (req, res) => {
       criteriaAverages,
       overallScore: aggregateRubric.overallScore,
       reviewCount: aggregateRubric.reviewCount,
-      lastUpdated: aggregateRubric.lastUpdated
+      lastUpdated: aggregateRubric.lastUpdated,
+      isEditable: user.role === 'Admin' // Only admins can edit
     });
   } catch (error) {
     console.error('Error fetching aggregate rubric:', error);
@@ -183,8 +201,8 @@ exports.getRubricEvaluation = async (req, res) => {
       return res.status(400).json({ error: 'Invalid artifact type' });
     }
 
-    // Validate project access
-    await validateProjectAccess(user._id, projectId, user.role);
+    // This function will handle admin vs regular user access differently
+    await validateProjectAccess(user, projectId);
     
     const rubricEvaluation = await RubricEvaluation.findOne({
       project: projectId,
@@ -195,12 +213,17 @@ exports.getRubricEvaluation = async (req, res) => {
     if (!rubricEvaluation) {
       return res.json({
         criteria: [],
-        overallScore: 0
+        overallScore: 0,
+        isEditable: user.role === 'Admin' // Only admins can edit
       });
     }
     
+    // Add isEditable flag
+    const evaluationResponse = rubricEvaluation.toObject();
+    evaluationResponse.isEditable = user.role === 'Admin'; // Only admins can edit
+    
     return res.json({
-      evaluation: rubricEvaluation
+      evaluation: evaluationResponse
     });
   } catch (error) {
     console.error('Error fetching rubric evaluation:', error);
@@ -216,6 +239,11 @@ exports.saveRubricEvaluation = async (req, res) => {
     }
     const user = await User.findById(req.auth.user._id);
     if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    // Only admins can save rubric evaluations
+    if (user.role !== 'Admin') {
+      return res.status(403).json({ error: 'Only administrators can create or edit evaluations' });
+    }
 
     const { rubricType, criteria, project: projectId } = req.body;
     
@@ -225,8 +253,8 @@ exports.saveRubricEvaluation = async (req, res) => {
       return res.status(400).json({ error: 'Invalid rubric type' });
     }
 
-    // Validate project access
-    await validateProjectAccess(user._id, projectId, user.role);
+    // This function will handle admin vs regular user access differently
+    await validateProjectAccess(user, projectId);
     
     let rubricEvaluation = await RubricEvaluation.findOne({
       project: projectId,
@@ -262,7 +290,13 @@ exports.saveRubricEvaluation = async (req, res) => {
     
     await rubricEvaluation.save();
     
-    res.status(201).json({ evaluation: rubricEvaluation });
+    // Add isEditable flag
+    const evaluationResponse = rubricEvaluation.toObject();
+    evaluationResponse.isEditable = user.role === 'Admin'; // Only admins can edit
+    
+    res.status(201).json({ 
+      evaluation: evaluationResponse
+    });
   } catch (error) {
     console.error('Error saving rubric evaluation:', error);
     return res.status(500).json({ error: error.message });

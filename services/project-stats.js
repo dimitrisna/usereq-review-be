@@ -1,6 +1,7 @@
 // services/project-stats.js
 const mongoose = require('mongoose');
 const Project = require('../models/project');
+const { SYSTEM_USER_ID } = require('../utilities/constants');
 const {
   RequirementReview,
   StoryReview,
@@ -83,11 +84,15 @@ async function getUniqueReviewedCount(ReviewModel, refField, artifactIds) {
     return 0;
   }
   
-  // Use aggregation to count unique artifacts that have been reviewed
+  // Create the system user ObjectId
+  const systemUserId = new mongoose.Types.ObjectId(SYSTEM_USER_ID);
+  
+  // Use aggregation to count unique artifacts that have been reviewed by the system user (admin reviews)
   const result = await ReviewModel.aggregate([
     { 
       $match: { 
-        [refField]: { $in: artifactIds } 
+        [refField]: { $in: artifactIds },
+        reviewer: systemUserId // Only count reviews by system user
       } 
     },
     {
