@@ -7,27 +7,17 @@ const StoryReview = createReviewModel('StoryReview', 'story', {
     ref: 'ProjectStory',
     required: true,
   },
-  userFocusScore: {
+  storyFormatScore: {
     type: Number,
     min: 0,
     max: 5,
   },
-  valuePropositionScore: {
+  featureCompletionScore: {
     type: Number,
     min: 0,
     max: 5,
   },
   acceptanceCriteriaScore: {
-    type: Number,
-    min: 0,
-    max: 5,
-  },
-  sizeScore: {
-    type: Number,
-    min: 0,
-    max: 5,
-  },
-  independenceScore: {
     type: Number,
     min: 0,
     max: 5,

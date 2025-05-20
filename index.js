@@ -55,11 +55,7 @@ app.use('/api/reviews', reviewsRoutes);
 app.use('/api/rubric-evaluations', rubricEvaluationRoutes);
 app.use('/api/composite', compositeRoutes);
 app.use('/api/test', require('./routes/test'));
-// Health check route
-app.get('/api/health', (req, res) => {
-    console.log('Health endpoint hit');
-    res.status(200).send('OK');
-});
+
 app.get('/api/test', (req, res) => {
     res.json({ message: 'API is working' });
 });
@@ -87,7 +83,6 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
 });
 
 module.exports = app;

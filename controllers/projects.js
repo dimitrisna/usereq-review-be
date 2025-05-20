@@ -259,8 +259,7 @@ exports.getProject = async (req, res) => {
     // Add isEditable flag
     const projectData = project.toObject();
     projectData.isEditable = user.role === 'Admin' || project.creatorId.toString() === user._id.toString();
-    console.log('Project data:', projectData);
-    console.log('Project stats:', stats);
+
     res.json({
       project: projectData,
       stats
@@ -417,7 +416,6 @@ exports.getProjectStats = async (req, res) => {
     stats.classDiagrams.averageRating = parseFloat((classDiagramRating[0]?.averageRating || 0).toFixed(2));
     stats.designPatterns.averageRating = parseFloat((designPatternRating[0]?.averageRating || 0).toFixed(2));
     stats.mockups.averageRating = parseFloat((mockupRating[0]?.averageRating || 0).toFixed(2));
-    console.log('Project stats:', stats);
     // Compute global stats
     const {
       totalArtifacts,

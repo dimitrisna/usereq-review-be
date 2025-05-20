@@ -10,7 +10,7 @@ const auth0Client = (token) => {
   const { AUTH0_URL } = process.env;
   
   const headers = {
-    'User-Agent': 'Review App Backend',
+    'User-Agent': 'Usereq Review Backend',
     'Authorization': token ? `Bearer ${token}` : undefined
   };
   

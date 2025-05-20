@@ -8,27 +8,17 @@ const UseCaseDiagramReview = createReviewModel('UseCaseDiagramReview', 'useCaseD
     ref: 'UseCaseDiagram',
     required: true,
   },
-  actorIdentificationScore: {
+  umlSyntaxScore: {
     type: Number,
     min: 0,
     max: 5,
   },
-  useCaseDefinitionScore: {
+  useCasePackageScore: {
     type: Number,
     min: 0,
     max: 5,
   },
-  relationshipsScore: {
-    type: Number,
-    min: 0,
-    max: 5,
-  },
-  systemBoundaryScore: {
-    type: Number,
-    min: 0,
-    max: 5,
-  },
-  completenessScore: {
+  gherkinSpecificationScore: {
     type: Number,
     min: 0,
     max: 5,

@@ -8,27 +8,27 @@ const ClassDiagramReview = createReviewModel('ClassDiagramReview', 'classDiagram
     ref: 'ClassDiagram',
     required: true,
   },
-  classStructureScore: {
+  boundaryObjectsScore: {
     type: Number,
     min: 0,
     max: 5,
   },
-  relationshipModelingScore: {
+  controlObjectsScore: {
     type: Number,
     min: 0,
     max: 5,
   },
-  completenessScore: {
+  entityObjectsScore: {
     type: Number,
     min: 0,
     max: 5,
   },
-  clarityScore: {
+  umlNotationScore: {
     type: Number,
     min: 0,
     max: 5,
   },
-  designPrinciplesScore: {
+  architecturalDesignScore: {
     type: Number,
     min: 0,
     max: 5,

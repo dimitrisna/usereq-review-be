@@ -14,12 +14,10 @@ exports.getRequirementsForProject = async (req, res) => {
         if (!user) return res.status(404).json({ error: 'User not found' });
 
         const { projectId } = req.params;
-        console.log('user', user);
         const project = await Project.findOne({
             _id: projectId,
             users: { $in: [user._id] }
         });
-        console.log(user.role)
         if (!project && (user.role !== 'Admin')) {
             return res.status(403).json({ error: 'Not authorized to access this project' });
         }

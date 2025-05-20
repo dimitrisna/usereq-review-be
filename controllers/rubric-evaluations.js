@@ -6,46 +6,38 @@ const User = require('../models/user');
 // Default criteria templates for each artifact type
 const DEFAULT_CRITERIA = {
     'requirements': [
-        { name: 'Clarity', description: 'Requirements are clear and unambiguous', score: 0 },
-        { name: 'Testability', description: 'Requirements can be verified through testing', score: 0 },
-        { name: 'Feasibility', description: 'Requirements are technically and operationally feasible', score: 0 },
-        { name: 'Necessity', description: 'Each requirement is essential to the system', score: 0 },
-        { name: 'Prioritization', description: 'Requirements are properly prioritized', score: 0 }
+        { name: 'Proper Syntax', description: 'Requirements are formulated using strict syntax (e.g., "The system must...")', score: 0 },
+        { name: 'Correct Categorization', description: 'Requirements are correctly categorized as functional or non-functional', score: 0 },
+        { name: 'Well-defined Scope', description: 'Each requirement describes either a single well-defined function/quality characteristic or a related group of functions', score: 0 },
+        { name: 'Quantification', description: 'Quality characteristics described by non-functional requirements are adequately quantified where possible', score: 0 }
     ],
     'storys': [
-        { name: 'User Focus', description: 'Story clearly identifies the user role', score: 0 },
-        { name: 'Value Proposition', description: 'Story clearly states the benefit to the user', score: 0 },
-        { name: 'Acceptance Criteria', description: 'Clear criteria for when the story is complete', score: 0 },
-        { name: 'Size/Scope', description: 'Story is appropriately sized for implementation', score: 0 },
-        { name: 'Independence', description: 'Story can be implemented independently', score: 0 }
+        { name: 'Story Format', description: 'User stories follow the proper format and structure (As a... I want to... So that...)', score: 0 },
+        { name: 'Feature Completion', description: 'Each user story is fully defined and belongs to a complete feature package', score: 0 },
+        { name: 'Acceptance Criteria', description: 'Each user story has adequate acceptance criteria with preconditions, triggers, and expected system responses', score: 0 }
     ],
     'activityDiagrams': [
-        { name: 'Flow Logic', description: 'Correctly shows the flow of activities', score: 0 },
-        { name: 'Decision Points', description: 'Properly represents decision points and conditions', score: 0 },
-        { name: 'Parallel Activities', description: 'Correctly shows concurrent activities', score: 0 },
-        { name: 'Start/End Points', description: 'Clear entry and exit points', score: 0 },
-        { name: 'Clarity', description: 'Easy to follow and understand', score: 0 }
+        { name: 'UML Syntax', description: 'Activity diagrams have been created with correct UML syntax', score: 0 },
+        { name: 'Scenario Coverage', description: 'The activity diagram for each use case contains all its Gherkin scenarios', score: 0 },
+        { name: 'Gherkin Alignment', description: 'The steps of each Gherkin scenario match with the activities in the corresponding flow in the activity diagram', score: 0 }
     ],
     'useCaseDiagrams': [
-        { name: 'Actor Identification', description: 'Correctly identifies external actors', score: 0 },
-        { name: 'Use Case Definition', description: 'Use cases represent valuable user goals', score: 0 },
-        { name: 'Relationships', description: 'Proper use of include/extend relationships', score: 0 },
-        { name: 'System Boundary', description: 'Clear system boundaries', score: 0 },
-        { name: 'Completeness', description: 'Covers all user interactions with the system', score: 0 }
+        { name: 'UML Syntax', description: 'Use case diagrams have been created with correct UML syntax', score: 0 },
+        { name: 'Use Case Package Definition', description: 'A complete use case package has been defined for each use case in the diagrams', score: 0 },
+        { name: 'Gherkin Specification', description: 'Each use case package adequately defines preconditions, triggers, and system responses for each Gherkin scenario', score: 0 }
     ],
     'sequenceDiagrams': [
-        { name: 'Object Interaction', description: 'Correctly shows interaction between objects', score: 0 },
+        // Remove: { name: 'Object Interaction', description: 'Correctly shows interaction between objects', score: 0 },
+        { name: 'UML Correctness', description: 'Follows UML sequence diagram standards and notation', score: 0 },
         { name: 'Message Flow', description: 'Proper sequence of messages', score: 0 },
-        { name: 'Return Values', description: 'Properly shows return values and responses', score: 0 },
-        { name: 'Exception Handling', description: 'Includes error scenarios', score: 0 },
         { name: 'Completeness', description: 'Covers all necessary interactions', score: 0 }
     ],
     'classDiagrams': [
-        { name: 'Class Structure', description: 'Appropriate use of classes, attributes, methods', score: 0 },
-        { name: 'Relationship Modeling', description: 'Appropriate associations, inheritance, composition', score: 0 },
-        { name: 'Completeness', description: 'Covers all required functionality', score: 0 },
-        { name: 'Clarity', description: 'Naming and organization are clear and consistent', score: 0 },
-        { name: 'Design Principles', description: 'Follows OOP principles (encapsulation, etc.)', score: 0 }
+        { name: 'Boundary Objects', description: 'Correct definition of boundary objects with proper attributes/methods, UI event handlers, and appropriate relationships', score: 0 },
+        { name: 'Control Objects', description: 'Correct definition of control objects with business logic methods and no inappropriate attributes/setters/getters', score: 0 },
+        { name: 'Entity Objects', description: 'Correct definition of entity objects with appropriate attributes and getter/setter methods', score: 0 },
+        { name: 'UML Notation', description: 'Correct use of UML symbols and notation in class diagrams', score: 0 },
+        { name: 'Architectural Design', description: 'Correct layer separation with proper connections between boundary, control, and entity classes', score: 0 }
     ],
     'designPatterns': [
         { name: 'Pattern Selection', description: 'Appropriate pattern for the problem', score: 0 },
@@ -71,17 +63,17 @@ const validateProjectAccess = async (user, projectId) => {
         if (!project) throw new Error('Project not found');
         return project;
     }
-    
+
     // For regular users, check if they are a member of the project
     const project = await Project.findOne({
         _id: projectId,
         users: { $in: [user._id] }
     });
-    
+
     if (!project) {
         throw new Error('Not authorized to access this project');
     }
-    
+
     return project;
 };
 
@@ -157,7 +149,7 @@ exports.saveRubricEvaluation = async (req, res) => {
         } catch (error) {
             return res.status(403).json({ error: error.message });
         }
-        
+
         let evaluation = await RubricEvaluation.findOne({
             project: project,
             rubricType,
@@ -180,11 +172,11 @@ exports.saveRubricEvaluation = async (req, res) => {
         }
 
         await evaluation.save();
-        
+
         // Add isEditable flag
         const evaluationResponse = evaluation.toObject();
         evaluationResponse.isEditable = user.role === 'Admin'; // Only admins can edit
-        
+
         res.status(201).json({ evaluation: evaluationResponse });
     } catch (error) {
         console.error('Save rubric evaluation error:', error);
@@ -289,7 +281,7 @@ exports.calculateOverallScore = async (req, res) => {
         evaluation.overallScore = overallScore;
         await evaluation.save();
 
-        res.json({ 
+        res.json({
             overallScore,
             isEditable: user.role === 'Admin' // Only admins can edit
         });

@@ -26,7 +26,7 @@ const {
 } = require('../models');
 
 // System user constant for reviews
-const SYSTEM_USER_ID = process.env.SYSTEM_USER_ID || '000000000000000000000000';
+const SYSTEM_USER_ID = '000000000000000000000000';
 
 // Helper for validating project access
 const validateProjectAccess = async (user, projectId) => {
@@ -520,12 +520,10 @@ exports.getActivityDiagramsReviewData = async (req, res) => {
         rating: review?.rating || 0,
         comment: review?.comment || '',
         scores: review ? {
-          flowLogicScore: review.flowLogicScore,
-          decisionPointsScore: review.decisionPointsScore,
-          parallelActivitiesScore: review.parallelActivitiesScore,
-          startEndPointsScore: review.startEndPointsScore,
-          clarityScore: review.clarityScore
-        } : null,
+          umlSyntaxScore: review.umlSyntaxScore,
+          scenarioComprehensiveScore: review.scenarioComprehensiveScore,
+          gherkinAlignmentScore: review.gherkinAlignmentScore
+        } : {},
         isEditable: user.role === 'Admin' // Only admins can edit
       };
     });
@@ -752,12 +750,11 @@ exports.getSequenceDiagramsReviewData = async (req, res) => {
         rating: review?.rating || 0,
         comment: review?.comment || '',
         scores: review ? {
-          objectInteractionScore: review.objectInteractionScore,
+          umlCorrectnessScore: review.umlCorrectnessScore,
           messageFlowScore: review.messageFlowScore,
           returnValuesScore: review.returnValuesScore,
-          exceptionHandlingScore: review.exceptionHandlingScore,
           completenessScore: review.completenessScore
-        } : null,
+        } : {},
         isEditable: user.role === 'Admin' // Only admins can edit
       };
     });
@@ -868,12 +865,10 @@ exports.getUseCaseDiagramsReviewData = async (req, res) => {
         rating: review?.rating || 0,
         comment: review?.comment || '',
         scores: review ? {
-          actorIdentificationScore: review.actorIdentificationScore,
-          useCaseDefinitionScore: review.useCaseDefinitionScore,
-          relationshipsScore: review.relationshipsScore,
-          systemBoundaryScore: review.systemBoundaryScore,
-          completenessScore: review.completenessScore
-        } : null,
+          umlSyntaxScore: review.umlSyntaxScore,
+          useCasePackageScore: review.useCasePackageScore,
+          gherkinSpecificationScore: review.gherkinSpecificationScore
+        } : {},
         isEditable: user.role === 'Admin' // Only admins can edit
       };
     });
@@ -1102,12 +1097,11 @@ exports.getRequirementsReviewData = async (req, res) => {
         rating: review?.rating || 0,
         comment: review?.comment || '',
         scores: review ? {
-          clarityScore: review.clarityScore,
-          testabilityScore: review.testabilityScore,
-          feasibilityScore: review.feasibilityScore,
-          necessityScore: review.necessityScore,
-          prioritizationScore: review.prioritizationScore
-        } : null,
+          syntaxScore: review.syntaxScore,
+          categorizationScore: review.categorizationScore,
+          scopeDefinitionScore: review.scopeDefinitionScore,
+          quantificationScore: review.quantificationScore
+        } : {},
         isEditable: user.role === 'Admin' // Only admins can edit
       };
     });
@@ -1213,12 +1207,10 @@ exports.getStoriesReviewData = async (req, res) => {
         rating: review?.rating || 0,
         comment: review?.comment || '',
         scores: review ? {
-          userFocusScore: review.userFocusScore,
-          valuePropositionScore: review.valuePropositionScore,
-          acceptanceCriteriaScore: review.acceptanceCriteriaScore,
-          sizeScore: review.sizeScore,
-          independenceScore: review.independenceScore
-        } : null,
+          storyFormatScore: review.storyFormatScore,
+          featureCompletionScore: review.featureCompletionScore,
+          acceptanceCriteriaScore: review.acceptanceCriteriaScore
+        } : {},
         isEditable: user.role === 'Admin' // Only admins can edit
       };
     });

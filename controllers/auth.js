@@ -126,7 +126,6 @@ exports.register = async (req, res) => {
 // Login user
 exports.login = async (req, res) => {
     try {
-        console.log('Login request body:', req.body);
         // Check if body exists
         if (!req.body) {
             return res.status(400).json({ error: 'Request body is required' });

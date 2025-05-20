@@ -8,27 +8,17 @@ const ActivityDiagramReview = createReviewModel('ActivityDiagramReview', 'activi
     ref: 'ActivityDiagram',
     required: true,
   },
-  flowLogicScore: {
+  umlSyntaxScore: {
     type: Number,
     min: 0,
     max: 5,
   },
-  decisionPointsScore: {
+  scenarioComprehensiveScore: {
     type: Number,
     min: 0,
     max: 5,
   },
-  parallelActivitiesScore: {
-    type: Number,
-    min: 0,
-    max: 5,
-  },
-  startEndPointsScore: {
-    type: Number,
-    min: 0,
-    max: 5,
-  },
-  clarityScore: {
+  gherkinAlignmentScore: {
     type: Number,
     min: 0,
     max: 5,

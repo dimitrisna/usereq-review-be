@@ -8,27 +8,22 @@ const RequirementReview = createReviewModel('RequirementReview', 'requirement', 
     ref: 'ProjectRequirement',
     required: true,
   },
-  clarityScore: {
+  syntaxScore: {
     type: Number,
     min: 0,
     max: 5,
   },
-  testabilityScore: {
+  categorizationScore: {
     type: Number,
     min: 0,
     max: 5,
   },
-  feasibilityScore: {
+  scopeDefinitionScore: {
     type: Number,
     min: 0,
     max: 5,
   },
-  necessityScore: {
-    type: Number,
-    min: 0,
-    max: 5,
-  },
-  prioritizationScore: {
+  quantificationScore: {
     type: Number,
     min: 0,
     max: 5,

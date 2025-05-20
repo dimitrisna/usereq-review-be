@@ -31,30 +31,28 @@ const validateProjectAccess = async (user, projectId) => {
 
 // Define criteria fields for each artifact type
 const criteriaFieldsMap = {
-  'requirements': ['clarityScore', 'testabilityScore', 'feasibilityScore', 'necessityScore', 'prioritizationScore'],
-  'storys': ['userFocusScore', 'valuePropositionScore', 'acceptanceCriteriaScore', 'sizeScore', 'independenceScore'],
-  'activityDiagrams': ['flowLogicScore', 'decisionPointsScore', 'parallelActivitiesScore', 'startEndPointsScore', 'clarityScore'],
-  'useCaseDiagrams': ['actorIdentificationScore', 'useCaseDefinitionScore', 'relationshipsScore', 'systemBoundaryScore', 'completenessScore'],
-  'sequenceDiagrams': ['objectInteractionScore', 'messageFlowScore', 'returnValuesScore', 'exceptionHandlingScore', 'completenessScore'],
-  'classDiagrams': ['classStructureScore', 'relationshipModelingScore', 'completenessScore', 'clarityScore', 'designPrinciplesScore'],
+  'requirements': ['syntaxScore', 'categorizationScore', 'scopeDefinitionScore', 'quantificationScore'],
+  'storys': ['storyFormatScore', 'featureCompletionScore', 'acceptanceCriteriaScore'],
+  'activityDiagrams': ['umlSyntaxScore', 'scenarioComprehensiveScore', 'gherkinAlignmentScore'],
+  'useCaseDiagrams': ['umlSyntaxScore', 'useCasePackageScore', 'gherkinSpecificationScore'],
+  'sequenceDiagrams': ['umlCorrectnessScore', 'messageFlowScore', 'completenessScore'],
+  'classDiagrams': ['boundaryObjectsScore', 'controlObjectsScore', 'entityObjectsScore', 
+                   'umlNotationScore', 'architecturalDesignScore'],
   'designPatterns': ['patternSelectionScore', 'implementationScore', 'flexibilityScore', 'complexityScore', 'documentationScore'],
   'mockups': ['uiUxDesignScore', 'consistencyScore', 'flowScore', 'completenessScore', 'userFriendlinessScore']
 };
 
 exports.updateAggregateRubric = async (projectId, artifactType) => {
-  try {
-    console.log('[RubricController] Updating rubric for:', projectId, artifactType);
+  try {    
     // Validate artifact type
     if (!criteriaFieldsMap[artifactType]) {
-      
       throw new Error(`Invalid artifact type: ${artifactType}`);
     }
-    console.log('HIIIIIIIIIII');
+    
     // Get the review model for this artifact type
     const singularType = artifactType.endsWith('s') ? artifactType.slice(0, -1) : artifactType;
-    console.log('Singular type:', singularType);
+    
     const entry = reviewModelMap[singularType];
-    console.log(entry);
     if (!entry) {
       throw new Error(`No review model found for artifact type: ${singularType}`);
     }
@@ -63,11 +61,9 @@ exports.updateAggregateRubric = async (projectId, artifactType) => {
     const criteriaFields = criteriaFieldsMap[artifactType];
     
     // Find all reviews for this artifact type in the project
-    // Use SYSTEM_USER_ID for reviews
     const reviews = await ReviewModel.find({ 
       project: projectId,
       reviewer: new mongoose.Types.ObjectId(SYSTEM_USER_ID)
-
     });
     
     if (!reviews || reviews.length === 0) {
@@ -85,31 +81,87 @@ exports.updateAggregateRubric = async (projectId, artifactType) => {
       return;
     }
     
-    // Calculate averages for each criteria
+    // Initialize variables for aggregate calculation
     const criteriaAverages = new Map();
     let totalScore = 0;
     let criteriaCount = 0;
     
-    criteriaFields.forEach(field => {
-      const validReviews = reviews.filter(r => r[field] !== undefined && r[field] !== null);
-      if (validReviews.length > 0) {
-        const sum = validReviews.reduce((acc, r) => acc + r[field], 0);
-        const avg = sum / validReviews.length;
-        criteriaAverages.set(field, avg);
-        totalScore += avg;
-        criteriaCount++;
-      } else {
-        criteriaAverages.set(field, 0);
+    // Special handling for requirements to properly handle quantificationScore
+    if (artifactType === 'requirements') {
+      // Get requirement types to identify which are non-functional
+      const ProjectRequirement = require('../models/project-requirement');
+      const requirementIds = reviews.map(r => r.requirement);
+      
+      const requirements = await ProjectRequirement.find({ 
+        _id: { $in: requirementIds } 
+      });
+      
+      // Create a map of requirement ID to type
+      const requirementTypeMap = new Map();
+      requirements.forEach(req => {
+        requirementTypeMap.set(req._id.toString(), (req.type || '').toLowerCase());
+      });
+      
+      // Process each criteria field
+      for (const field of criteriaFields) {
+        if (field === 'quantificationScore') {
+          // For quantificationScore, only include non-functional requirements
+          const nonFunctionalReviews = reviews.filter(r => {
+            const reqId = r.requirement.toString();
+            const reqType = requirementTypeMap.get(reqId);
+            return r[field] !== undefined && 
+                   r[field] !== null && 
+                   reqType === 'nonfunctional';
+          });
+          
+          if (nonFunctionalReviews.length > 0) {
+            const sum = nonFunctionalReviews.reduce((acc, r) => acc + r[field], 0);
+            const avg = sum / nonFunctionalReviews.length;
+            criteriaAverages.set(field, avg);
+            totalScore += avg;
+            criteriaCount++;
+          } else {
+            criteriaAverages.set(field, 0);
+          }
+                  } else {
+          // Standard processing for other criteria (apply to all requirements)
+          const validReviews = reviews.filter(r => r[field] !== undefined && r[field] !== null);
+          if (validReviews.length > 0) {
+            const sum = validReviews.reduce((acc, r) => acc + r[field], 0);
+            const avg = sum / validReviews.length;
+            criteriaAverages.set(field, avg);
+            totalScore += avg;
+            criteriaCount++;
+          } else {
+            criteriaAverages.set(field, 0);
+          }
+                  }
       }
-    });
+    } else {
+      // Standard processing for other artifact types
+      criteriaFields.forEach(field => {
+        const validReviews = reviews.filter(r => r[field] !== undefined && r[field] !== null);
+        if (validReviews.length > 0) {
+          const sum = validReviews.reduce((acc, r) => acc + r[field], 0);
+          const avg = sum / validReviews.length;
+          criteriaAverages.set(field, avg);
+          totalScore += avg;
+          criteriaCount++;
+        } else {
+          criteriaAverages.set(field, 0);
+        }
+      });
+    }
     
     // Calculate overall score
     const overallScore = criteriaCount > 0 ? totalScore / criteriaCount : 0;
-    console.log('Overall score:', overallScore);
+    
+    // Fix artifact type spelling issue
     if (artifactType === 'storys') {
-        artifactType = 'stories';
+      artifactType = 'stories';
     }
-    // Update the aggregate record
+    
+    // Update the aggregate record in the database
     await AggregateRubric.findOneAndUpdate(
       { project: projectId, artifactType },
       { 
@@ -120,14 +172,15 @@ exports.updateAggregateRubric = async (projectId, artifactType) => {
       },
       { upsert: true, new: true }
     );
-    console.log(AggregateRubric)
+    
+    // Return the updated aggregate data
     return {
       criteriaAverages: Object.fromEntries(criteriaAverages),
       overallScore,
       reviewCount: reviews.length
     };
   } catch (error) {
-    console.error(`Error updating aggregate rubric for ${artifactType}:`, error);
+    console.error(`[RubricController] Error updating aggregate rubric for ${artifactType}:`, error);
     throw error;
   }
 };
